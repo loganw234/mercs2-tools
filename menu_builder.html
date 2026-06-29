@@ -1,0 +1,2244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mercenaries 2 Lua Menu Builder</title>
+  <!-- Import Inter Font from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-main: #0e0d0c;
+      --bg-card: rgba(22, 20, 18, 0.85);
+      --bg-card-hover: rgba(32, 28, 24, 0.85);
+      --border-color: rgba(255, 162, 0, 0.15);
+      --border-active: #ffa200;
+      --primary: #ffa200;
+      --primary-hover: #ffb833;
+      --primary-glow: rgba(255, 162, 0, 0.15);
+      --accent: #ff5100;
+      --accent-hover: #ff6a1a;
+      --danger: #ff3131;
+      --danger-hover: #ff1a1a;
+      --success: #39ff14;
+      
+      --text-main: #ebe6df;
+      --text-muted: #9e988e;
+      --text-dark: #5c5750;
+      
+      --game-bg: rgba(13, 13, 17, 0.85);
+      --game-border: #ffa200;
+      --game-highlight: #ffffff;
+      --game-text: #ebe6df;
+      --game-btn-bg: transparent;
+      --game-btn-hover: rgba(255, 162, 0, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+    }
+
+    header {
+      background: linear-gradient(135deg, #06070a 0%, #0e0f14 100%);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-badge {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      color: #0c0d12;
+      font-weight: 800;
+      font-size: 1rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+
+    .logo-title {
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      font-size: 1.5rem;
+      font-weight: normal;
+      letter-spacing: 0.05em;
+      color: var(--primary);
+    }
+
+    .logo-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-left: 0.5rem;
+      border-left: 1px solid var(--border-color);
+      padding-left: 0.5rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.625rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid transparent;
+      outline: none;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: #0c0d12;
+      box-shadow: 0 4px 12px rgba(197, 160, 89, 0.25);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+      color: #0c0d12;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background-color: rgba(255, 255, 255, 0.03);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.07);
+      border-color: var(--text-muted);
+    }
+
+    .btn-danger {
+      background-color: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background-color: var(--danger);
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.75rem;
+      border-radius: 6px;
+    }
+
+    .main-layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      height: calc(100vh - 80px);
+      overflow: hidden;
+    }
+
+    @media (max-width: 1100px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+      }
+      .editor-pane, .preview-pane {
+        height: auto !important;
+        overflow: visible !important;
+      }
+    }
+
+    .editor-pane {
+      padding: 2rem;
+      overflow-y: auto;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .preview-pane {
+      background-color: #050608;
+      padding: 2rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+    }
+
+    .card-title {
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      font-size: 1.2rem;
+      font-weight: normal;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-title svg {
+      color: var(--primary);
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+      width: 100%;
+      background-color: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: var(--text-main);
+      padding: 0.625rem 0.875rem;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+      outline: none;
+    }
+
+    textarea.form-control {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-group input {
+      width: 1.125rem;
+      height: 1.125rem;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* Tabs Component */
+    .tabs-header {
+      display: flex;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 1rem;
+      gap: 1rem;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 0.5rem 0.25rem 0.75rem 0.25rem;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      color: var(--primary);
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Menu Manager styles */
+    .menu-list-container {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+      scrollbar-width: thin;
+    }
+
+    .menu-tab {
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+    }
+
+    .menu-tab:hover {
+      background-color: rgba(255, 255, 255, 0.07);
+    }
+
+    .menu-tab.active {
+      background-color: var(--primary-glow);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Buttons / Options List */
+    .option-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .option-card {
+      background-color: rgba(0, 0, 0, 0.15);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .option-card:hover {
+      border-color: var(--border-active);
+    }
+
+    .option-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .option-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .option-card-actions {
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .option-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .option-details-full {
+      grid-column: span 2;
+    }
+
+    .checkboxes-row {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 0.5rem;
+      grid-column: span 2;
+    }
+
+    /* Simulator Styling */
+    .sim-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem;
+      background: radial-gradient(circle at center, #1b1c24 0%, #08090b 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.95);
+      position: relative;
+      min-height: 520px;
+      overflow: hidden;
+      outline: none;
+    }
+
+    .sim-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #bcbab5;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.25rem;
+      background-color: rgba(15, 15, 21, 0.75);
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      text-shadow: 1px 1px 0px #000;
+      z-index: 2;
+    }
+
+    .sim-dialog {
+      background-color: rgba(13, 13, 17, 0.82);
+      border: 2px solid #bda874;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 480px;
+      padding: 2rem 1.5rem 1.5rem 1.5rem;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      position: relative;
+      z-index: 1;
+    }
+
+    .sim-dialog-header {
+      color: #e5e2db;
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      font-size: 1.65rem;
+      font-weight: normal;
+      text-align: left;
+      margin-left: 2.5rem;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.03em;
+      text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.95);
+    }
+
+    .sim-dialog-options {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .sim-btn {
+      background: none;
+      border: none;
+      padding: 0.4rem 1rem 0.4rem 2.5rem;
+      color: #bcbab5;
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      font-size: 1.45rem;
+      letter-spacing: 0.03em;
+      font-weight: normal;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.95);
+      position: relative;
+      width: 100%;
+    }
+
+    .sim-btn:hover, .sim-btn.active-selection {
+      color: #ffffff !important;
+      background: rgba(189, 168, 116, 0.18) !important;
+      outline: none;
+    }
+
+    .sim-btn.sim-btn-nav {
+      color: #8c8a85;
+      font-style: italic;
+    }
+
+    .sim-btn-cancel-badge {
+      font-size: 0.65rem;
+      background-color: rgba(189, 168, 116, 0.2);
+      border: 1px solid rgba(189, 168, 116, 0.5);
+      color: #e5e2db;
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-family: 'Inter', sans-serif;
+      letter-spacing: 0.05em;
+      text-shadow: none;
+    }
+
+    /* Footer / Controller Prompts */
+    .sim-dialog-footer {
+      border-top: 1.5px solid rgba(189, 168, 116, 0.3);
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      display: flex;
+      gap: 1.5rem;
+      justify-content: flex-start;
+      margin-left: 2.5rem;
+    }
+
+    .sim-control-prompt {
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      font-size: 1.15rem;
+      color: #bcbab5;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      text-shadow: 2px 2px 2px rgba(0, 0, 0, 0.95);
+      letter-spacing: 0.03em;
+    }
+
+    .dpad-icon {
+      display: inline-flex;
+      width: 20px;
+      height: 20px;
+      color: #bcbab5;
+    }
+
+    .btn-a-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #f8fafc 0%, #cbd5e1 100%);
+      border: 1.5px solid #475569;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #1e293b;
+      font-weight: 900;
+      font-family: 'Inter', sans-serif;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+      text-shadow: none;
+    }
+
+    .sim-hint {
+      margin-top: 1.25rem;
+      font-size: 0.75rem;
+      color: #bcbab5;
+      text-align: center;
+      background-color: rgba(15, 15, 21, 0.75);
+      padding: 0.35rem 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      max-width: 440px;
+      text-shadow: 1px 1px 0px #000;
+      z-index: 2;
+    }
+
+    /* Output Code Panel */
+    .output-container {
+      display: flex;
+      flex-direction: column;
+      background-color: #07070a;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      flex: 1;
+      min-height: 400px;
+      max-height: 600px;
+      overflow: hidden;
+    }
+
+    .output-header {
+      background-color: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .output-title {
+      font-size: 0.8125rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .output-code {
+      flex: 1;
+      padding: 1.25rem;
+      overflow-y: auto;
+      font-family: 'Fira Code', 'Courier New', Courier, monospace;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      white-space: pre;
+      color: #e2e8f0;
+      scrollbar-width: thin;
+    }
+
+    /* Lua syntax highlight colors */
+    .lua-keyword { color: #f43f5e; font-weight: bold; }
+    .lua-string { color: #10b981; }
+    .lua-comment { color: #64748b; font-style: italic; }
+    .lua-number { color: #f59e0b; }
+    .lua-function { color: #3b82f6; }
+    .lua-builtin { color: #06b6d4; font-weight: bold; }
+
+    /* Custom Checkbox Grid */
+    .imports-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .imports-custom-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      border-top: 1px solid var(--border-color);
+      padding-top: 1rem;
+    }
+
+    /* Move buttons styling */
+    .btn-icon {
+      padding: 0.375rem;
+      border-radius: 4px;
+      background-color: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+    }
+
+    .btn-icon.delete:hover {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: var(--danger);
+    }
+
+    /* Scrollbars customization */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <div class="logo-badge">M2</div>
+      <div class="logo-title">Lua Menu Builder</div>
+      <div class="logo-subtitle">MrxMultiPageMenu Pipeline Helper</div>
+    </div>
+    <div class="header-actions">
+      <a href="index.html" class="btn btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;">← Modding Hub</a>
+      <button class="btn btn-secondary" onclick="loadSamplePreset('smokeTest')">Smoke Test Preset</button>
+      <button class="btn btn-secondary" onclick="loadSamplePreset('cheatMenuWorld')">Cheat Menu (World)</button>
+      <button class="btn btn-secondary" onclick="loadSamplePreset('cheatMenuInterior')">Cheat Menu (PMC Interior)</button>
+    </div>
+  </header>
+
+  <div class="main-layout">
+    <!-- Left Pane: Editors -->
+    <div class="editor-pane">
+      
+      <!-- Global Config Card -->
+      <div class="card">
+        <div class="tabs-header">
+          <button class="tab-btn active" onclick="switchTab('tab-global', this)">Global Configurations</button>
+          <button class="tab-btn" onclick="switchTab('tab-imports', this)">Module Imports</button>
+        </div>
+
+        <div id="tab-global" class="tab-content active">
+          <div class="form-group">
+            <label class="form-label" for="start-menu-select">Default Initial Menu</label>
+            <select id="start-menu-select" class="form-control" onchange="updateStartMenu(this.value)">
+              <!-- Populated dynamically -->
+            </select>
+            <span style="font-size: 0.75rem; color: var(--text-dark); margin-top: 0.25rem; display: block;">
+              This specifies which menu function executes first when the Lua chunk loads.
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="global-code">Global Helpers / Variables (Pasted raw at top)</label>
+            <textarea id="global-code" class="form-control" rows="8" placeholder="-- Add your helper functions and variables here...
+local function _RefillAmmo()
+  -- custom code...
+end" oninput="updateGlobalCode(this.value)"></textarea>
+          </div>
+        </div>
+
+        <div id="tab-imports" class="tab-content">
+          <div class="imports-grid" id="imports-container">
+            <!-- Populated dynamically -->
+          </div>
+          <div class="imports-custom-row">
+            <input type="text" id="custom-import-input" class="form-control" placeholder="e.g. MrxPmc">
+            <button class="btn btn-primary btn-sm" onclick="addCustomImport()">Add Import</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Menu Manager Card -->
+      <div class="card">
+        <div class="card-title-bar">
+          <div class="card-title">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+            Menus Manager
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="createNewMenu()">+ Add Menu</button>
+        </div>
+
+        <div class="menu-list-container" id="menu-tabs-list">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- Selected Menu configuration -->
+        <div id="selected-menu-config">
+          <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 1rem;">
+            <div class="form-group">
+              <label class="form-label" for="menu-id-input">Menu Variable Suffix</label>
+              <input type="text" id="menu-id-input" class="form-control" oninput="updateMenuId(this.value)">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="menu-title-input">Menu Header Title</label>
+              <input type="text" id="menu-title-input" class="form-control" oninput="updateMenuTitle(this.value)">
+            </div>
+          </div>
+
+          <!-- Cancel/Close binding -->
+          <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
+            <span class="form-label" style="margin-bottom: 0.5rem;">Cancel Button Handler (ESC/Controller B)</span>
+            <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+              <label class="checkbox-group">
+                <input type="radio" name="cancel-type" value="none" onchange="updateCancelType('none')">
+                <span>None</span>
+              </label>
+              <label class="checkbox-group">
+                <input type="radio" name="cancel-type" value="close" onchange="updateCancelType('close')">
+                <span>Close Menu</span>
+              </label>
+              <label class="checkbox-group">
+                <input type="radio" name="cancel-type" value="submenu" onchange="updateCancelType('submenu')">
+                <span>Back to Menu...</span>
+              </label>
+            </div>
+            
+            <div id="cancel-submenu-select-row" class="form-group" style="margin-top: 0.75rem; display: none;">
+              <label class="form-label" for="cancel-target-menu">Target Parent Menu</label>
+              <select id="cancel-target-menu" class="form-control" onchange="updateCancelTargetMenu(this.value)">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+
+            <div id="cancel-text-row" class="form-group" style="margin-top: 0.75rem; display: none;">
+              <label class="form-label" for="cancel-label-input">Cancel Option Button Label</label>
+              <input type="text" id="cancel-label-input" class="form-control" oninput="updateCancelLabel(this.value)" placeholder="e.g. Close this menu">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Menu Option/Buttons Card -->
+      <div class="card">
+        <div class="card-title-bar">
+          <div class="card-title">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"></path></svg>
+            Menu Options (Buttons)
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addNewOption()">+ Add Button</button>
+        </div>
+
+        <div class="option-list" id="option-list-container">
+          <!-- Dynamically populated options for selected menu -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Pane: Simulator + Code Output -->
+    <div class="preview-pane">
+      
+      <!-- Visual Simulator -->
+      <div class="sim-container">
+        <div class="sim-title">Live Menu Simulator</div>
+        <div class="sim-dialog">
+          <div class="sim-dialog-header" id="sim-header-text">Menu Title</div>
+          <div class="sim-dialog-options" id="sim-options-list">
+            <!-- Simulated buttons -->
+          </div>
+          <!-- Controller prompt footer matching the game -->
+          <div class="sim-dialog-footer">
+            <div class="sim-control-prompt">
+              <svg class="dpad-icon" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2a1 1 0 011 1v6h6a1 1 0 010 2h-6v6a1 1 0 01-2 0v-6H5a1 1 0 010-2h6V3a1 1 0 011-1z"/>
+              </svg>
+              <span>Move Selection</span>
+            </div>
+            <div class="sim-control-prompt">
+              <span class="btn-a-icon">A</span>
+              <span>Confirm</span>
+            </div>
+          </div>
+        </div>
+        <div class="sim-hint">Simulated max options: 8 per page. Hover options, or use keyboard <b>Up/Down/Enter/Esc</b> while hovering this panel!</div>
+      </div>
+
+      <!-- Code Output -->
+      <div class="output-container">
+        <div class="output-header">
+          <div class="output-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            Generated Lua script
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-secondary btn-sm" id="btn-copy" onclick="copyToClipboard()">Copy Code</button>
+            <button class="btn btn-primary btn-sm" onclick="downloadLuaFile()">Download .lua</button>
+          </div>
+        </div>
+        <div class="output-code" id="code-output-box"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Template Scripts Reference (Hidden from direct view but readable by script) -->
+  <script>
+    // Presets Library
+    const LUA_PRESETS = {
+      refillAmmo: {
+        name: "Refill Weapons Ammo",
+        code: `local char = Player.GetLocalCharacter()
+if not char then return end
+local atts = Object.GetAttachedObjects(char)
+if type(atts) ~= "table" then return end
+for _, w in ipairs(atts) do
+  local nMaxClip = Weapon.GetMaxClipAmmo(w)
+  if nMaxClip then Weapon.SetClipAmmo(w, nMaxClip) end
+  Weapon.SetReserveAmmo(w, 999)
+end
+Debug.Printf("[CheatMenu] Refilled ammo on all weapons")`
+      },
+      giveCash: {
+        name: "Give Cash (+$50,000)",
+        code: `Player.AddCash(50000)
+Debug.Printf("[CheatMenu] Added $50,000 cash")`
+      },
+      addFuel: {
+        name: "Add Fuel (+100)",
+        code: `MrxPmc.AddFuelQty(100)
+Debug.Printf("[CheatMenu] Added 100 fuel")`
+      },
+      showCoords: {
+        name: "Show Coordinates",
+        code: `local char = Player.GetLocalCharacter()
+if not char then return end
+local x, y, z = Object.GetPosition(char)
+Debug.Printf(string.format("[CheatMenu] Position: %.1f, %.1f, %.1f", x, y, z))`
+      },
+      teleportOrigin: {
+        name: "Teleport to Origin",
+        code: `local char = Player.GetLocalCharacter()
+if char then
+  Object.SetPosition(char, 0, 100, 0)
+  Debug.Printf("[CheatMenu] Teleported to (0, 100, 0)")
+end`
+      },
+      unlockLZs: {
+        name: "Unlock All LZs",
+        code: `MrxTransit.UnlockAllLandingZones()
+Debug.Printf("[CheatMenu] All landing zones unlocked")`
+      },
+      dispenseRewards: {
+        name: "Dispense All Rewards",
+        code: `MrxRewardData.DispenseAllRewards()
+Debug.Printf("[CheatMenu] Dispensed all rewards")`
+      },
+      modifyFactionRelation: {
+        name: "Make Factions Friendly",
+        code: `-- Set PLAV friendly to PMC (value 1.0)
+MrxFactionManager.SetRelation("Plav", "Pmc", 1.0)
+-- Set Allied friendly to PMC
+MrxFactionManager.SetRelation("Allied", "Pmc", 1.0)
+Debug.Printf("[CheatMenu] Set factions to friendly")`
+      }
+    };
+
+    // State Variables
+    let appState = {
+      imports: [
+        { name: "MrxMultiPageMenu", active: true, deletable: false },
+        { name: "MrxFactionManager", active: false, deletable: true },
+        { name: "MrxTransit", active: false, deletable: true },
+        { name: "MrxRewardData", active: false, deletable: true },
+        { name: "MrxPmc", active: false, deletable: true },
+        { name: "MrxSupportData", active: false, deletable: true },
+        { name: "WifPmcInterior", active: false, deletable: true },
+        { name: "MrxUtil", active: false, deletable: true }
+      ],
+      globalCode: "",
+      startMenuId: "main_menu",
+      menus: []
+    };
+
+    let selectedMenuIndex = 0;
+    let simCurrentPage = 1;
+
+    // Default configuration preset helpers
+    function createInitialState() {
+      appState.menus = [
+        {
+          id: "main_menu",
+          title: "Custom Test Menu",
+          cancelType: "close", // 'none', 'close', 'submenu'
+          cancelTarget: "",
+          cancelLabel: "Close this menu",
+          options: [
+            {
+              label: "Give $50,000",
+              type: "inline", // 'inline', 'submenu', 'reference'
+              code: LUA_PRESETS.giveCash.code,
+              funcName: "",
+              argsTable: "",
+              targetMenuId: "",
+              bEveryPage: false,
+              bBindToCancelButton: false
+            },
+            {
+              label: "Refill all ammo",
+              type: "inline",
+              code: LUA_PRESETS.refillAmmo.code,
+              funcName: "",
+              argsTable: "",
+              targetMenuId: "",
+              bEveryPage: false,
+              bBindToCancelButton: false
+            },
+            {
+              label: "Show my coordinates",
+              type: "inline",
+              code: LUA_PRESETS.showCoords.code,
+              funcName: "",
+              argsTable: "",
+              targetMenuId: "",
+              bEveryPage: false,
+              bBindToCancelButton: false
+            },
+            {
+              label: "Teleport to origin",
+              type: "inline",
+              code: LUA_PRESETS.teleportOrigin.code,
+              funcName: "",
+              argsTable: "",
+              targetMenuId: "",
+              bEveryPage: false,
+              bBindToCancelButton: false
+            },
+            {
+              label: "Unlock all Landing Zones",
+              type: "reference",
+              code: "",
+              funcName: "MrxTransit.UnlockAllLandingZones",
+              argsTable: "nil",
+              targetMenuId: "",
+              bEveryPage: false,
+              bBindToCancelButton: false
+            },
+            {
+              label: "Open Submenu...",
+              type: "submenu",
+              code: "",
+              funcName: "",
+              argsTable: "",
+              targetMenuId: "sub_menu",
+              bEveryPage: false,
+              bBindToCancelButton: false
+            }
+          ]
+        },
+        {
+          id: "sub_menu",
+          title: "Submenu options",
+          cancelType: "submenu",
+          cancelTarget: "main_menu",
+          cancelLabel: "Back to main menu",
+          options: [
+            {
+              label: "Add Fuel (+100)",
+              type: "inline",
+              code: LUA_PRESETS.addFuel.code,
+              funcName: "",
+              argsTable: "",
+              targetMenuId: "",
+              bEveryPage: false,
+              bBindToCancelButton: false
+            },
+            {
+              label: "Dispense all rewards",
+              type: "reference",
+              code: "",
+              funcName: "MrxRewardData.DispenseAllRewards",
+              argsTable: "nil",
+              targetMenuId: "",
+              bEveryPage: false,
+              bBindToCancelButton: false
+            }
+          ]
+        }
+      ];
+      appState.startMenuId = "main_menu";
+      appState.imports.find(i => i.name === "MrxTransit").active = true;
+      appState.imports.find(i => i.name === "MrxRewardData").active = true;
+      appState.imports.find(i => i.name === "MrxPmc").active = true;
+      selectedMenuIndex = 0;
+      simCurrentPage = 1;
+    }
+
+    // Load sample preset
+    function loadSamplePreset(presetType) {
+      if (presetType === 'smokeTest') {
+        appState.imports = [
+          { name: "MrxMultiPageMenu", active: true, deletable: false }
+        ];
+        appState.globalCode = `-- Each option is a top-level function so MrxMultiPageMenu can call it by
+-- reference. Args are passed as a table; engine unpacks them.
+
+local function _GiveCash(nAmount)
+  Player.AddCash(nAmount)
+  Debug.Printf("[TestMenu] Added " .. nAmount .. " cash")
+end
+
+local function _TeleportToPos(nX, nY, nZ)
+  local char = Player.GetLocalCharacter()
+  if char then
+    Object.SetPosition(char, nX, nY, nZ)
+    Debug.Printf("[TestMenu] Teleported to " .. nX .. ", " .. nY .. ", " .. nZ)
+  end
+end
+
+local function _RefillAmmo()
+  local char = Player.GetLocalCharacter()
+  if not char then return end
+  local atts = Object.GetAttachedObjects(char)
+  if type(atts) ~= "table" then return end
+  for _, w in ipairs(atts) do
+    local nMaxClip = Weapon.GetMaxClipAmmo(w)
+    if nMaxClip then Weapon.SetClipAmmo(w, nMaxClip) end
+    Weapon.SetReserveAmmo(w, 999)
+  end
+  Debug.Printf("[TestMenu] Refilled ammo on all weapons")
+end
+
+local function _ShowPosition()
+  local char = Player.GetLocalCharacter()
+  if not char then return end
+  local x, y, z = Object.GetPosition(char)
+  Debug.Printf(string.format("[TestMenu] Player position: %.1f, %.1f, %.1f", x, y, z))
+end`;
+        appState.startMenuId = "main_menu";
+        appState.menus = [
+          {
+            id: "main_menu",
+            title: "Custom Test Menu",
+            cancelType: "close",
+            cancelTarget: "",
+            cancelLabel: "Close this menu",
+            options: [
+              {
+                label: "Give $50,000",
+                type: "reference",
+                code: "",
+                funcName: "_GiveCash",
+                argsTable: "{50000}",
+                targetMenuId: "",
+                bEveryPage: false,
+                bBindToCancelButton: false
+              },
+              {
+                label: "Refill all ammo",
+                type: "reference",
+                code: "",
+                funcName: "_RefillAmmo",
+                argsTable: "nil",
+                targetMenuId: "",
+                bEveryPage: false,
+                bBindToCancelButton: false
+              },
+              {
+                label: "Show my coordinates",
+                type: "reference",
+                code: "",
+                funcName: "_ShowPosition",
+                argsTable: "nil",
+                targetMenuId: "",
+                bEveryPage: false,
+                bBindToCancelButton: false
+              },
+              {
+                label: "Teleport to origin",
+                type: "reference",
+                code: "",
+                funcName: "_TeleportToPos",
+                argsTable: "{0, 100, 0}",
+                targetMenuId: "",
+                bEveryPage: false,
+                bBindToCancelButton: false
+              }
+            ]
+          }
+        ];
+      } else if (presetType === 'cheatMenuWorld' || presetType === 'cheatMenuInterior') {
+        appState.imports = [
+          { name: "MrxMultiPageMenu", active: true, deletable: false },
+          { name: "MrxFactionManager", active: true, deletable: true },
+          { name: "MrxTransit", active: true, deletable: true },
+          { name: "MrxRewardData", active: true, deletable: true },
+          { name: "MrxPmc", active: true, deletable: true },
+          { name: "MrxSupportData", active: true, deletable: true },
+          { name: "WifPmcInterior", active: true, deletable: true },
+          { name: "MrxUtil", active: true, deletable: true },
+          { name: "MrxPlayState", active: true, deletable: true },
+          { name: "WifMissionData", active: true, deletable: true },
+          { name: "Munitions", active: true, deletable: true }
+        ];
+
+        appState.globalCode = `_sLastCompletedContractName = "NoContract"
+
+function SetTaskTreeRoot(oCurrTask)
+  _oCurrTask = oCurrTask
+end
+
+function DisplayOptions()
+  _DisplayRootDialog()
+end`;
+        appState.startMenuId = "root_menu";
+        
+        let rootOptions = [];
+        if (presetType === 'cheatMenuWorld') {
+          rootOptions.push(
+            { label: "Skip to a mission", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "skip_mission_menu", bEveryPage: false, bBindToCancelButton: false },
+            { label: "Skip to a briefing", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "skip_briefing_menu", bEveryPage: false, bBindToCancelButton: false },
+            { label: "Complete current contract", type: "inline", code: `local oCurrentContract = MrxPlayState.GetCurrentMission()\nif oCurrentContract then\n  oCurrentContract:Complete()\n  Debug.Printf("[Cheat] Completed current contract")\nend`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+            { label: "Traverse mission hierarchy", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "traverse_menu", bEveryPage: false, bBindToCancelButton: false }
+          );
+        }
+        
+        rootOptions.push(
+          { label: "Add cash", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "add_cash_menu", bEveryPage: false, bBindToCancelButton: false },
+          { label: "Add fuel", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "add_fuel_menu", bEveryPage: false, bBindToCancelButton: false },
+          { label: "Add support", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "add_support_menu", bEveryPage: false, bBindToCancelButton: false },
+          { label: "Modify attitude", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "modify_attitude_menu", bEveryPage: false, bBindToCancelButton: false },
+          { label: "Unlock all landing zones", type: "reference", code: "", funcName: "MrxTransit.UnlockAllLandingZones", argsTable: "nil", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+          { label: "Dispense all rewards", type: "reference", code: "", funcName: "MrxRewardData.DispenseAllRewards", argsTable: "nil", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+        );
+
+        appState.menus = [
+          {
+            id: "root_menu",
+            title: presetType === 'cheatMenuWorld' ? "Welcome to the Cheat Menu (World)." : "Welcome to the Cheat Menu (PMC Villa).",
+            cancelType: "close",
+            cancelTarget: "",
+            cancelLabel: "Close this menu",
+            options: rootOptions
+          }
+        ];
+        
+        if (presetType === 'cheatMenuWorld') {
+          appState.menus.push(
+            {
+              id: "skip_mission_menu",
+              title: "Select a mission:",
+              cancelType: "submenu",
+              cancelTarget: "root_menu",
+              cancelLabel: "Return to root menu",
+              options: [
+                { label: "Mission: Get Misha", type: "inline", code: `_fMissionSkipDialogCallback("MishaContract", false)`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+                { label: "Mission: Get Fiona", type: "inline", code: `_fMissionSkipDialogCallback("FionaContract", false)`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+              ]
+            },
+            {
+              id: "skip_briefing_menu",
+              title: "Select a briefing:",
+              cancelType: "submenu",
+              cancelTarget: "root_menu",
+              cancelLabel: "Return to root menu",
+              options: [
+                { label: "Briefing: Get Misha", type: "inline", code: `_fMissionSkipDialogCallback("MishaContract", true)`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+                { label: "Briefing: Get Fiona", type: "inline", code: `_fMissionSkipDialogCallback("FionaContract", true)`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+              ]
+            },
+            {
+              id: "traverse_menu",
+              title: "Traverse hierarchy",
+              cancelType: "submenu",
+              cancelTarget: "root_menu",
+              cancelLabel: "Return to root menu",
+              options: [
+                { label: "Complete task", type: "inline", code: `_oCurrTask:Complete()\n_oCurrTask = _oCurrTask:GetParent()\n_ShowMenu_root_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+                { label: "Cancel current task", type: "inline", code: `_oCurrTask:Cancel()\n_oCurrTask = _oCurrTask:GetParent()\n_ShowMenu_root_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+              ]
+            }
+          );
+        }
+
+        appState.menus.push(
+          {
+            id: "add_cash_menu",
+            title: "Add Cash",
+            cancelType: "submenu",
+            cancelTarget: "root_menu",
+            cancelLabel: "Return to root menu",
+            options: [
+              { label: "+$1,000", type: "inline", code: `MrxPmc.AddCashQty(1000)\n_ShowMenu_add_cash_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "+$10,000", type: "inline", code: `MrxPmc.AddCashQty(10000)\n_ShowMenu_add_cash_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "+$100,000", type: "inline", code: `MrxPmc.AddCashQty(100000)\n_ShowMenu_add_cash_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "+$1,000,000", type: "inline", code: `MrxPmc.AddCashQty(1000000)\n_ShowMenu_add_cash_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+            ]
+          },
+          {
+            id: "add_fuel_menu",
+            title: "Add Fuel",
+            cancelType: "submenu",
+            cancelTarget: "root_menu",
+            cancelLabel: "Return to root menu",
+            options: [
+              { label: "+10 Fuel", type: "inline", code: `MrxPmc.AddFuelQty(10)\n_ShowMenu_add_fuel_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "+100 Fuel", type: "inline", code: `MrxPmc.AddFuelQty(100)\n_ShowMenu_add_fuel_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "+1,000 Fuel", type: "inline", code: `MrxPmc.AddFuelQty(1000)\n_ShowMenu_add_fuel_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+            ]
+          },
+          {
+            id: "add_support_menu",
+            title: "Add Support",
+            cancelType: "submenu",
+            cancelTarget: "root_menu",
+            cancelLabel: "Return to root menu",
+            options: [
+              { label: "The Works! + $ + F", type: "inline", code: `for sKey, tData in pairs(MrxSupportData.tSupportData) do\n  MrxPmc.AddSupportQty(sKey, tData.nMaxStock - (MrxPmc.GetSupportQty(sKey) or 0))\nend\nMrxPmc.AddCashQty(10000000)\nMrxPmc.SetFuelCapacity(9999, true)\nMrxPmc.AddFuelQty(9999)\nMrxSupportData.SetIgnoreRequirements(true)`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "Air Strike (+1)", type: "inline", code: `MrxPmc.AddSupportQty("AirStrike", 1)\n_ShowMenu_add_support_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "Supply Drop (+1)", type: "inline", code: `MrxPmc.AddSupportQty("SupplyDrop", 1)\n_ShowMenu_add_support_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+            ]
+          },
+          {
+            id: "modify_attitude_menu",
+            title: "Modify attitude",
+            cancelType: "submenu",
+            cancelTarget: "root_menu",
+            cancelLabel: "Return to root menu",
+            options: [
+              { label: "Change subject", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "faction_dialog_menu", bEveryPage: false, bBindToCancelButton: false },
+              { label: "Change object", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "faction_dialog_menu", bEveryPage: false, bBindToCancelButton: false },
+              { label: "Change attitude", type: "submenu", code: "", funcName: "", argsTable: "", targetMenuId: "attitude_dialog_menu", bEveryPage: false, bBindToCancelButton: false }
+            ]
+          },
+          {
+            id: "faction_dialog_menu",
+            title: "Choose faction",
+            cancelType: "submenu",
+            cancelTarget: "modify_attitude_menu",
+            cancelLabel: "Back",
+            options: [
+              { label: "PMC", type: "inline", code: `_sSubjectAbbrev = "Pmc"\n_ShowMenu_modify_attitude_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "Allied", type: "inline", code: `_sSubjectAbbrev = "Allied"\n_ShowMenu_modify_attitude_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "Plav", type: "inline", code: `_sSubjectAbbrev = "Plav"\n_ShowMenu_modify_attitude_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+            ]
+          },
+          {
+            id: "attitude_dialog_menu",
+            title: "Choose attitude",
+            cancelType: "submenu",
+            cancelTarget: "modify_attitude_menu",
+            cancelLabel: "Back",
+            options: [
+              { label: "Friendly (100)", type: "inline", code: `MrxFactionManager.SetRelation(_sSubjectAbbrev, _sObjectAbbrev, 100)\n_ShowMenu_modify_attitude_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "Neutral (0)", type: "inline", code: `MrxFactionManager.SetRelation(_sSubjectAbbrev, _sObjectAbbrev, 0)\n_ShowMenu_modify_attitude_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false },
+              { label: "Hostile (-100)", type: "inline", code: `MrxFactionManager.SetRelation(_sSubjectAbbrev, _sObjectAbbrev, -100)\n_ShowMenu_modify_attitude_menu()`, funcName: "", argsTable: "", targetMenuId: "", bEveryPage: false, bBindToCancelButton: false }
+            ]
+          }
+        );
+      }
+      
+      selectedMenuIndex = 0;
+      simCurrentPage = 1;
+      
+      renderAll();
+      updateOutputCode();
+    }
+
+    // Tab switcher helper
+    function switchTab(tabId, btnEl) {
+      // Deactivate all tabs in this container parent
+      const tabContainer = btnEl.parentElement;
+      const tabButtons = tabContainer.querySelectorAll('.tab-btn');
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      
+      // Hide all content areas of the parent's target scope
+      const parentCard = tabContainer.parentElement;
+      const tabContents = parentCard.querySelectorAll('.tab-content');
+      tabContents.forEach(content => content.classList.remove('active'));
+      
+      // Activate selected
+      btnEl.classList.add('active');
+      parentCard.querySelector('#' + tabId).classList.add('active');
+    }
+
+    // Global simulator keyboard focus variables
+    let simSelectedIndex = 0;
+    let isHoveringSim = false;
+
+    // Initialization
+    window.onload = function() {
+      createInitialState();
+      renderAll();
+      updateOutputCode();
+      setupSimulatorKeyboardNav();
+    };
+
+    // Render EVERYTHING based on state
+    function renderAll() {
+      renderImports();
+      renderStartMenuSelect();
+      renderGlobalCodeTextarea();
+      renderMenuTabs();
+      renderSelectedMenuConfig();
+      renderOptionsList();
+      renderSimulator();
+    }
+
+    // 1. Imports
+    function renderImports() {
+      const container = document.getElementById('imports-container');
+      container.innerHTML = '';
+      
+      appState.imports.forEach((imp, index) => {
+        const label = document.createElement('label');
+        label.className = 'checkbox-group';
+        
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = imp.active;
+        input.disabled = !imp.deletable; // Keep MrxMultiPageMenu checked
+        input.onchange = (e) => {
+          imp.active = e.target.checked;
+          updateOutputCode();
+        };
+        
+        const span = document.createElement('span');
+        span.textContent = imp.name;
+        
+        label.appendChild(input);
+        label.appendChild(span);
+        
+        if (imp.deletable) {
+          const deleteBtn = document.createElement('span');
+          deleteBtn.innerHTML = ' &times;';
+          deleteBtn.style.color = 'var(--danger)';
+          deleteBtn.style.cursor = 'pointer';
+          deleteBtn.style.fontWeight = 'bold';
+          deleteBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            appState.imports.splice(index, 1);
+            renderImports();
+            updateOutputCode();
+          };
+          label.appendChild(deleteBtn);
+        }
+        
+        container.appendChild(label);
+      });
+    }
+
+    function addCustomImport() {
+      const input = document.getElementById('custom-import-input');
+      const val = input.value.trim();
+      if (val && !appState.imports.some(i => i.name.toLowerCase() === val.toLowerCase())) {
+        appState.imports.push({ name: val, active: true, deletable: true });
+        input.value = '';
+        renderImports();
+        updateOutputCode();
+      }
+    }
+
+    // 2. Start Menu Select
+    function renderStartMenuSelect() {
+      const select = document.getElementById('start-menu-select');
+      select.innerHTML = '';
+      
+      appState.menus.forEach(menu => {
+        const opt = document.createElement('option');
+        opt.value = menu.id;
+        opt.textContent = `${menu.title} (_ShowMenu_${menu.id})`;
+        opt.selected = (menu.id === appState.startMenuId);
+        select.appendChild(opt);
+      });
+    }
+
+    function updateStartMenu(val) {
+      appState.startMenuId = val;
+      updateOutputCode();
+    }
+
+    // 3. Global Code
+    function renderGlobalCodeTextarea() {
+      document.getElementById('global-code').value = appState.globalCode;
+    }
+
+    function updateGlobalCode(val) {
+      appState.globalCode = val;
+      updateOutputCode();
+    }
+
+    // 4. Menu Tabs
+    function renderMenuTabs() {
+      const container = document.getElementById('menu-tabs-list');
+      container.innerHTML = '';
+      
+      appState.menus.forEach((menu, index) => {
+        const tab = document.createElement('div');
+        tab.className = `menu-tab ${index === selectedMenuIndex ? 'active' : ''}`;
+        tab.onclick = () => {
+          selectedMenuIndex = index;
+          simCurrentPage = 1; // reset simulator page when switching menu
+          renderAll();
+        };
+        
+        tab.innerHTML = `
+          <span>${menu.title || 'Untitled'} (${menu.id})</span>
+        `;
+        
+        if (appState.menus.length > 1) {
+          const deleteBtn = document.createElement('span');
+          deleteBtn.innerHTML = '&times;';
+          deleteBtn.style.color = 'var(--text-dark)';
+          deleteBtn.style.fontSize = '1.1rem';
+          deleteBtn.style.marginLeft = '0.5rem';
+          deleteBtn.style.cursor = 'pointer';
+          deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Are you sure you want to delete menu: "${menu.title}"?`)) {
+              appState.menus.splice(index, 1);
+              if (selectedMenuIndex >= appState.menus.length) {
+                selectedMenuIndex = appState.menus.length - 1;
+              }
+              // Adjust start menu if deleted
+              if (!appState.menus.some(m => m.id === appState.startMenuId)) {
+                appState.startMenuId = appState.menus[0].id;
+              }
+              simCurrentPage = 1;
+              renderAll();
+              updateOutputCode();
+            }
+          };
+          tab.appendChild(deleteBtn);
+        }
+        
+        container.appendChild(tab);
+      });
+    }
+
+    function createNewMenu() {
+      const id = "menu_" + Date.now().toString().substring(8);
+      const newMenu = {
+        id: id,
+        title: "New Submenu",
+        cancelType: "submenu",
+        cancelTarget: appState.menus[0].id,
+        cancelLabel: "Back",
+        options: []
+      };
+      appState.menus.push(newMenu);
+      selectedMenuIndex = appState.menus.length - 1;
+      simCurrentPage = 1;
+      renderAll();
+      updateOutputCode();
+    }
+
+    // 5. Selected Menu Configurations
+    function renderSelectedMenuConfig() {
+      const menu = appState.menus[selectedMenuIndex];
+      if (!menu) return;
+      
+      document.getElementById('menu-id-input').value = menu.id;
+      document.getElementById('menu-title-input').value = menu.title;
+      
+      // Cancel bindings
+      const radioBtns = document.getElementsByName('cancel-type');
+      radioBtns.forEach(btn => {
+        btn.checked = (btn.value === menu.cancelType);
+      });
+      
+      const subSelectRow = document.getElementById('cancel-submenu-select-row');
+      const textRow = document.getElementById('cancel-text-row');
+      
+      if (menu.cancelType === 'none') {
+        subSelectRow.style.display = 'none';
+        textRow.style.display = 'none';
+      } else if (menu.cancelType === 'close') {
+        subSelectRow.style.display = 'none';
+        textRow.style.display = 'block';
+        document.getElementById('cancel-label-input').value = menu.cancelLabel;
+      } else {
+        // submenu
+        subSelectRow.style.display = 'block';
+        textRow.style.display = 'block';
+        document.getElementById('cancel-label-input').value = menu.cancelLabel;
+        
+        // Populate parent menu dropdown
+        const select = document.getElementById('cancel-target-menu');
+        select.innerHTML = '';
+        appState.menus.forEach(otherMenu => {
+          if (otherMenu.id !== menu.id) {
+            const opt = document.createElement('option');
+            opt.value = otherMenu.id;
+            opt.textContent = `${otherMenu.title} (${otherMenu.id})`;
+            opt.selected = (otherMenu.id === menu.cancelTarget);
+            select.appendChild(opt);
+          }
+        });
+      }
+    }
+
+    function updateMenuId(val) {
+      const menu = appState.menus[selectedMenuIndex];
+      // Sanitize variable name
+      const sanitized = val.replace(/[^a-zA-Z0-9_]/g, '');
+      menu.id = sanitized;
+      renderMenuTabs();
+      renderStartMenuSelect();
+      updateOutputCode();
+    }
+
+    function updateMenuTitle(val) {
+      const menu = appState.menus[selectedMenuIndex];
+      menu.title = val;
+      renderMenuTabs();
+      renderStartMenuSelect();
+      renderSimulator();
+      updateOutputCode();
+    }
+
+    function updateCancelType(type) {
+      const menu = appState.menus[selectedMenuIndex];
+      menu.cancelType = type;
+      if (type === 'submenu' && !menu.cancelTarget) {
+        // pick first menu that isn't this one
+        const other = appState.menus.find(m => m.id !== menu.id);
+        menu.cancelTarget = other ? other.id : '';
+      }
+      if (type === 'close') {
+        menu.cancelLabel = "Close this menu";
+      } else if (type === 'submenu') {
+        menu.cancelLabel = "Back";
+      }
+      renderSelectedMenuConfig();
+      renderSimulator();
+      updateOutputCode();
+    }
+
+    function updateCancelTargetMenu(val) {
+      const menu = appState.menus[selectedMenuIndex];
+      menu.cancelTarget = val;
+      renderSimulator();
+      updateOutputCode();
+    }
+
+    function updateCancelLabel(val) {
+      const menu = appState.menus[selectedMenuIndex];
+      menu.cancelLabel = val;
+      renderSimulator();
+      updateOutputCode();
+    }
+
+    // 6. Options List
+    function renderOptionsList() {
+      const menu = appState.menus[selectedMenuIndex];
+      const container = document.getElementById('option-list-container');
+      container.innerHTML = '';
+      
+      if (menu.options.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-dark); text-align: center; padding: 1.5rem; border: 1px dashed var(--border-color); border-radius: 8px;">No options defined yet. Click "+ Add Button" to add menu options.</div>';
+        return;
+      }
+      
+      menu.options.forEach((opt, idx) => {
+        const card = document.createElement('div');
+        card.className = 'option-card';
+        
+        // Populate target submenus
+        let submenuOptionsHtml = '';
+        appState.menus.forEach(m => {
+          if (m.id !== menu.id) {
+            submenuOptionsHtml += `<option value="${m.id}" ${opt.targetMenuId === m.id ? 'selected' : ''}>${m.title} (${m.id})</option>`;
+          }
+        });
+        
+        // Build preset options HTML
+        let presetOptionsHtml = '<option value="">-- Apply Preset Code --</option>';
+        for (let key in LUA_PRESETS) {
+          presetOptionsHtml += `<option value="${key}">${LUA_PRESETS[key].name}</option>`;
+        }
+
+        card.innerHTML = `
+          <div class="option-card-header">
+            <div class="option-title">
+              <span>#${idx + 1}: ${opt.label || 'Untitled Button'}</span>
+            </div>
+            <div class="option-card-actions">
+              <button class="btn-icon" onclick="moveOption(${idx}, -1)" title="Move Up">▲</button>
+              <button class="btn-icon" onclick="moveOption(${idx}, 1)" title="Move Down">▼</button>
+              <button class="btn-icon delete" onclick="deleteOption(${idx})" title="Delete Button" style="margin-left: 0.5rem;">✕</button>
+            </div>
+          </div>
+          
+          <div class="option-details">
+            <div class="form-group">
+              <label class="form-label">Button Label</label>
+              <input type="text" class="form-control" value="${opt.label}" oninput="updateOptionField(${idx}, 'label', this.value)">
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Action Type</label>
+              <select class="form-control" onchange="updateOptionField(${idx}, 'type', this.value)">
+                <option value="inline" ${opt.type === 'inline' ? 'selected' : ''}>Inline Custom Code (Anonymous Func)</option>
+                <option value="reference" ${opt.type === 'reference' ? 'selected' : ''}>Function Reference Callback</option>
+                <option value="submenu" ${opt.type === 'submenu' ? 'selected' : ''}>Open Submenu</option>
+              </select>
+            </div>
+            
+            <!-- Contextual fields -->
+            ${opt.type === 'inline' ? `
+              <div class="form-group option-details-full">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                  <label class="form-label" style="margin-bottom: 0;">Lua Callback Code</label>
+                  <select class="form-control" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.75rem; height: auto;" onchange="applyPreset(${idx}, this.value)">
+                    ${presetOptionsHtml}
+                  </select>
+                </div>
+                <textarea class="form-control" rows="4" oninput="updateOptionField(${idx}, 'code', this.value)" placeholder="-- Lua code...">${opt.code}</textarea>
+              </div>
+            ` : ''}
+            
+            ${opt.type === 'reference' ? `
+              <div class="form-group">
+                <label class="form-label">Function Reference (Name)</label>
+                <input type="text" class="form-control" value="${opt.funcName}" oninput="updateOptionField(${idx}, 'funcName', this.value)" placeholder="e.g. Player.AddCash">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Arguments Table (Lua syntax)</label>
+                <input type="text" class="form-control" value="${opt.argsTable}" oninput="updateOptionField(${idx}, 'argsTable', this.value)" placeholder="e.g. {50000} or nil">
+              </div>
+            ` : ''}
+            
+            ${opt.type === 'submenu' ? `
+              <div class="form-group option-details-full">
+                <label class="form-label">Target Submenu</label>
+                <select class="form-control" onchange="updateOptionField(${idx}, 'targetMenuId', this.value)">
+                  <option value="">-- Select Target Submenu --</option>
+                  ${submenuOptionsHtml}
+                </select>
+              </div>
+            ` : ''}
+            
+            <div class="checkboxes-row">
+              <label class="checkbox-group">
+                <input type="checkbox" ${opt.bEveryPage ? 'checked' : ''} onchange="updateOptionField(${idx}, 'bEveryPage', this.checked)">
+                <span>Show on Every Page</span>
+              </label>
+              <label class="checkbox-group">
+                <input type="checkbox" ${opt.bBindToCancelButton ? 'checked' : ''} onchange="updateOptionField(${idx}, 'bBindToCancelButton', this.checked)">
+                <span>Bind to Cancel Button</span>
+              </label>
+            </div>
+            
+          </div>
+        `;
+        
+        container.appendChild(card);
+      });
+    }
+
+    function addNewOption() {
+      const menu = appState.menus[selectedMenuIndex];
+      menu.options.push({
+        label: "New Option",
+        type: "inline",
+        code: `-- write your code here\n`,
+        funcName: "",
+        argsTable: "nil",
+        targetMenuId: "",
+        bEveryPage: false,
+        bBindToCancelButton: false
+      });
+      renderOptionsList();
+      renderSimulator();
+      updateOutputCode();
+    }
+
+    function deleteOption(idx) {
+      const menu = appState.menus[selectedMenuIndex];
+      menu.options.splice(idx, 1);
+      simCurrentPage = 1;
+      renderOptionsList();
+      renderSimulator();
+      updateOutputCode();
+    }
+
+    function moveOption(idx, dir) {
+      const menu = appState.menus[selectedMenuIndex];
+      const targetIdx = idx + dir;
+      if (targetIdx >= 0 && targetIdx < menu.options.length) {
+        const temp = menu.options[idx];
+        menu.options[idx] = menu.options[targetIdx];
+        menu.options[targetIdx] = temp;
+        renderOptionsList();
+        renderSimulator();
+        updateOutputCode();
+      }
+    }
+
+    function updateOptionField(idx, field, val) {
+      const menu = appState.menus[selectedMenuIndex];
+      menu.options[idx][field] = val;
+      
+      // Auto active imports if preset requires it
+      if (field === 'code') {
+        autoSelectImportsForCode(val);
+      }
+      
+      // Auto select imports if reference uses standard objects
+      if (field === 'funcName') {
+        const mainObj = val.split('.')[0];
+        if (mainObj && appState.imports.some(i => i.name === mainObj)) {
+          appState.imports.find(i => i.name === mainObj).active = true;
+          renderImports();
+        }
+      }
+
+      renderSimulator();
+      updateOutputCode();
+      
+      // Only refresh option card header text in real-time to avoid loss of focus during typing
+      if (field === 'label') {
+        const headerTitle = document.querySelectorAll('.option-title span')[idx];
+        if (headerTitle) headerTitle.textContent = `#${idx + 1}: ${val || 'Untitled Button'}`;
+      }
+    }
+
+    function autoSelectImportsForCode(codeText) {
+      let changed = false;
+      appState.imports.forEach(imp => {
+        if (!imp.active && codeText.includes(imp.name)) {
+          imp.active = true;
+          changed = true;
+        }
+      });
+      if (changed) {
+        renderImports();
+      }
+    }
+
+    function applyPreset(idx, key) {
+      if (key && LUA_PRESETS[key]) {
+        const menu = appState.menus[selectedMenuIndex];
+        menu.options[idx].code = LUA_PRESETS[key].code;
+        autoSelectImportsForCode(LUA_PRESETS[key].code);
+        renderOptionsList();
+        renderSimulator();
+        updateOutputCode();
+      }
+    }
+
+    // 7. Visual Simulator Paging Logic
+    function renderSimulator() {
+      const menu = appState.menus[selectedMenuIndex];
+      if (!menu) return;
+      
+      const titleEl = document.getElementById('sim-header-text');
+      const listEl = document.getElementById('sim-options-list');
+      
+      // Separate normal and every-page options
+      let normalOptions = [];
+      let everyPageOptions = [];
+      
+      menu.options.forEach(opt => {
+        if (opt.bEveryPage) {
+          everyPageOptions.push(opt);
+        } else {
+          normalOptions.push(opt);
+        }
+      });
+      
+      // Append cancel button if configured
+      let simulatedEveryPage = [...everyPageOptions];
+      if (menu.cancelType === 'close') {
+        simulatedEveryPage.push({
+          label: menu.cancelLabel || "Close this menu",
+          type: "close",
+          bEveryPage: true,
+          bBindToCancelButton: true
+        });
+      } else if (menu.cancelType === 'submenu') {
+        simulatedEveryPage.push({
+          label: menu.cancelLabel || "Back",
+          type: "submenu-cancel",
+          targetMenuId: menu.cancelTarget,
+          bEveryPage: true,
+          bBindToCancelButton: true
+        });
+      }
+      
+      // Calculate pagination based on _knMaxOptionsPerPage = 8
+      const nMaxOptionsPerPage = 8;
+      const nOptionsOnEveryPage = simulatedEveryPage.length;
+      const nFreeOptions = nMaxOptionsPerPage - nOptionsOnEveryPage;
+      
+      let totalPages = 1;
+      if (nFreeOptions > 0) {
+        totalPages = Math.max(1, Math.ceil(normalOptions.length / nFreeOptions));
+      } else {
+        // If everypage fills the menu entirely, no space for paging
+        totalPages = 1;
+      }
+      
+      if (simCurrentPage > totalPages) {
+        simCurrentPage = totalPages;
+      }
+      
+      // Render simulated title
+      let displayTitle = menu.title;
+      if (totalPages > 1) {
+        displayTitle += ` (Page ${simCurrentPage}/${totalPages})`;
+      }
+      titleEl.textContent = displayTitle;
+      
+      // Generate actual dialog buttons
+      listEl.innerHTML = '';
+      
+      let pageOptions = [];
+      
+      // 1. Next page option (if not on last page)
+      if (simCurrentPage < totalPages) {
+        pageOptions.push({
+          label: "Next page",
+          type: "nav",
+          targetPage: simCurrentPage + 1
+        });
+      }
+      
+      // 2. Previous page option (if not on page 1)
+      if (simCurrentPage > 1) {
+        pageOptions.push({
+          label: "Previous page",
+          type: "nav",
+          targetPage: simCurrentPage - 1
+        });
+      }
+      
+      // 3. Normal options for this page
+      const startIndex = (simCurrentPage - 1) * nFreeOptions;
+      for (let i = startIndex; i < startIndex + nFreeOptions; i++) {
+        if (i < normalOptions.length) {
+          pageOptions.push(normalOptions[i]);
+        }
+      }
+      
+      // 4. Options on every page
+      simulatedEveryPage.forEach(opt => {
+        pageOptions.push(opt);
+      });
+      
+      // Save current options to global state for keyboard access
+      appState.currentSimPageOptions = pageOptions;
+      if (simSelectedIndex >= pageOptions.length) {
+        simSelectedIndex = 0;
+      }
+
+      // Render to DOM
+      pageOptions.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'sim-btn';
+        if (idx === simSelectedIndex) {
+          btn.className += ' active-selection';
+        }
+        
+        btn.onmouseenter = () => {
+          simSelectedIndex = idx;
+          highlightSimSelection();
+        };
+        
+        if (opt.type === 'nav') {
+          btn.className += ' sim-btn-nav';
+          btn.onclick = () => {
+            simCurrentPage = opt.targetPage;
+            simSelectedIndex = 0;
+            renderSimulator();
+          };
+          btn.innerHTML = `<span>${opt.label}</span>`;
+        } else {
+          // Normal option click shows description tooltip / log
+          btn.onclick = () => {
+            let desc = `Button: "${opt.label}"\n`;
+            if (opt.type === 'close') {
+              desc += `Action: Closes the menu system (passes nil callback)`;
+            } else if (opt.type === 'submenu-cancel') {
+              desc += `Action: Binds to cancel, goes back to menu "${opt.targetMenuId}"`;
+            } else if (opt.type === 'submenu') {
+              desc += `Action: Opens submenu: "${opt.targetMenuId}"`;
+            } else if (opt.type === 'reference') {
+              desc += `Action: Runs C++ binding/helper reference: ${opt.funcName}(${opt.argsTable})`;
+            } else {
+              desc += `Action: Runs custom inline Lua code:\n-----------------------------\n${opt.code}`;
+            }
+            alert(desc);
+          };
+          
+          let cancelBadge = '';
+          if (opt.bBindToCancelButton) {
+            cancelBadge = '<span class="sim-btn-cancel-badge">Cancel Bind</span>';
+          }
+          btn.innerHTML = `<span>${opt.label}</span> ${cancelBadge}`;
+        }
+        
+        listEl.appendChild(btn);
+      });
+    }
+
+    function highlightSimSelection() {
+      const buttons = document.querySelectorAll('.sim-dialog-options .sim-btn');
+      buttons.forEach((btn, idx) => {
+        if (idx === simSelectedIndex) {
+          btn.classList.add('active-selection');
+        } else {
+          btn.classList.remove('active-selection');
+        }
+      });
+    }
+
+    function setupSimulatorKeyboardNav() {
+      const simContainer = document.querySelector('.sim-container');
+      simContainer.setAttribute('tabindex', '0'); // make focusable
+      
+      simContainer.onmouseenter = () => {
+        isHoveringSim = true;
+        simContainer.focus();
+      };
+      simContainer.onmouseleave = () => {
+        isHoveringSim = false;
+        simContainer.blur();
+      };
+      
+      simContainer.addEventListener('keydown', (e) => {
+        if (!isHoveringSim) return;
+        
+        const opts = appState.currentSimPageOptions || [];
+        if (opts.length === 0) return;
+        
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          simSelectedIndex = (simSelectedIndex + 1) % opts.length;
+          highlightSimSelection();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          simSelectedIndex = (simSelectedIndex - 1 + opts.length) % opts.length;
+          highlightSimSelection();
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const buttons = document.querySelectorAll('.sim-dialog-options .sim-btn');
+          if (buttons[simSelectedIndex]) {
+            buttons[simSelectedIndex].click();
+          }
+        } else if (e.key === 'Escape') {
+          const cancelOptIdx = opts.findIndex(o => o.bBindToCancelButton);
+          if (cancelOptIdx !== -1) {
+            e.preventDefault();
+            const buttons = document.querySelectorAll('.sim-dialog-options .sim-btn');
+            if (buttons[cancelOptIdx]) {
+              buttons[cancelOptIdx].click();
+            }
+          }
+        }
+      });
+    }
+
+    // 8. Generate Lua Script
+    function generateLuaCode() {
+      let code = `-- ============================================================================\n`;
+      code += `-- Decompiled-style Menu Script generated by Mercs2 Lua Menu Builder\n`;
+      code += `-- Auto-handles pagination & cancel button configurations.\n`;
+      code += `-- ============================================================================\n\n`;
+      
+      // Imports
+      const activeImports = appState.imports.filter(i => i.active);
+      if (activeImports.length > 0) {
+        activeImports.forEach(imp => {
+          code += `import("${imp.name}")\n`;
+        });
+        code += `\n`;
+      }
+      
+      // Global variable / code section
+      if (appState.globalCode.trim()) {
+        code += appState.globalCode.trim() + `\n\n`;
+      }
+      
+      // Forward declarations of menu functions
+      code += `-- Forward declarations for menu displays to support nested transitions\n`;
+      appState.menus.forEach(menu => {
+        code += `local _ShowMenu_${menu.id}\n`;
+      });
+      code += `\n`;
+      
+      // Callback helper functions for each menu
+      appState.menus.forEach(menu => {
+        let inlineOptionCount = 1;
+        menu.options.forEach(opt => {
+          if (opt.type === 'inline' && opt.code.trim()) {
+            const funcName = `_cb_${menu.id}_option_${inlineOptionCount++}`;
+            opt.generatedFuncName = funcName; // save for registration
+            code += `local function ${funcName}()\n`;
+            
+            // Indent the custom user code
+            const lines = opt.code.trim().split('\n');
+            lines.forEach(l => {
+              code += `  ${l}\n`;
+            });
+            
+            code += `end\n\n`;
+          }
+        });
+      });
+      
+      // Menu display builder functions
+      appState.menus.forEach(menu => {
+        code += `_ShowMenu_${menu.id} = function()\n`;
+        code += `  MrxMultiPageMenu.Reset()\n\n`;
+        
+        // Add options
+        let inlineOptionCount = 1;
+        menu.options.forEach(opt => {
+          let cbName = 'nil';
+          let args = 'nil';
+          
+          if (opt.type === 'inline') {
+            cbName = opt.generatedFuncName;
+          } else if (opt.type === 'reference') {
+            cbName = opt.funcName || 'nil';
+            args = opt.argsTable || 'nil';
+          } else if (opt.type === 'submenu') {
+            cbName = `_ShowMenu_${opt.targetMenuId}`;
+          }
+          
+          const everyPage = opt.bEveryPage ? 'true' : 'nil';
+          const cancelBind = opt.bBindToCancelButton ? 'true' : 'nil';
+          
+          // Format AddOption line
+          code += `  MrxMultiPageMenu.AddOption("${opt.label}", ${cbName}, ${args}`;
+          if (opt.bEveryPage || opt.bBindToCancelButton) {
+            code += `, ${everyPage}`;
+            if (opt.bBindToCancelButton) {
+              code += `, ${cancelBind}`;
+            }
+          }
+          code += `)\n`;
+        });
+        
+        // Append cancel bindings to output script if configured
+        if (menu.cancelType === 'close') {
+          code += `  MrxMultiPageMenu.AddOption("${menu.cancelLabel || 'Close this menu'}", nil, nil, true, true)\n`;
+        } else if (menu.cancelType === 'submenu' && menu.cancelTarget) {
+          code += `  MrxMultiPageMenu.AddOption("${menu.cancelLabel || 'Back'}", _ShowMenu_${menu.cancelTarget}, nil, true, true)\n`;
+        }
+        
+        code += `\n  MrxMultiPageMenu.Display("${menu.title}")\n`;
+        code += `end\n\n`;
+      });
+      
+      // Entry point call
+      if (appState.startMenuId && appState.menus.some(m => m.id === appState.startMenuId)) {
+        code += `-- Execute starting menu\n`;
+        code += `_ShowMenu_${appState.startMenuId}()\n\n`;
+      }
+      
+      code += `return "menu displayed"`;
+      
+      return code;
+    }
+
+    function updateOutputCode() {
+      const code = generateLuaCode();
+      const highlighted = highlightLua(code);
+      document.getElementById('code-output-box').innerHTML = highlighted;
+    }
+
+    // A lightweight syntax highlighter for Lua
+    function highlightLua(text) {
+      // Escape HTML chars
+      let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      
+      // Temporarily store comments/strings to avoid highlighting keywords inside them
+      const placeholders = [];
+      
+      // 1. Comments
+      html = html.replace(/(--.*?$)/gm, (match) => {
+        const ph = `__COMMENT_PH_${placeholders.length}__`;
+        placeholders.push({ ph, val: `<span class="lua-comment">${match}</span>` });
+        return ph;
+      });
+      
+      // 2. Strings ("" and '')
+      html = html.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, (match) => {
+        const ph = `__STRING_PH_${placeholders.length}__`;
+        placeholders.push({ ph, val: `<span class="lua-string">${match}</span>` });
+        return ph;
+      });
+      
+      // 3. Multi-line strings [[ ]]
+      html = html.replace(/(\[\[[\s\S]*?\]\])/g, (match) => {
+        const ph = `__STRING_PH_${placeholders.length}__`;
+        placeholders.push({ ph, val: `<span class="lua-string">${match}</span>` });
+        return ph;
+      });
+      
+      // 4. Keywords
+      const keywords = [
+        'local', 'function', 'end', 'if', 'then', 'else', 'elseif', 
+        'for', 'in', 'pairs', 'ipairs', 'do', 'return', 'nil', 'true', 'false'
+      ];
+      keywords.forEach(kw => {
+        const reg = new RegExp(`\\b${kw}\\b`, 'g');
+        html = html.replace(reg, `<span class="lua-keyword">${kw}</span>`);
+      });
+      
+      // 5. Decompiled-style imports
+      html = html.replace(/\bimport\b/g, `<span class="lua-builtin">import</span>`);
+
+      // 6. Built-in modules
+      const builtins = [
+        'MrxMultiPageMenu', 'MrxFactionManager', 'MrxTransit', 'MrxRewardData',
+        'MrxPmc', 'MrxSupportData', 'WifPmcInterior', 'MrxUtil', 'Player',
+        'Object', 'Weapon', 'Debug', 'table', 'string'
+      ];
+      builtins.forEach(bi => {
+        const reg = new RegExp(`\\b${bi}\\b`, 'g');
+        html = html.replace(reg, `<span class="lua-builtin">${bi}</span>`);
+      });
+      
+      // 7. Numbers
+      html = html.replace(/\b(\d+)\b/g, `<span class="lua-number">$1</span>`);
+      
+      // 8. Restore comments and strings
+      placeholders.forEach(ph => {
+        html = html.replace(ph.ph, ph.val);
+      });
+      
+      return html;
+    }
+
+    // Copy to clipboard helper
+    function copyToClipboard() {
+      const code = generateLuaCode();
+      navigator.clipboard.writeText(code).then(() => {
+        const btn = document.getElementById('btn-copy');
+        btn.textContent = '✓ Copied!';
+        btn.style.backgroundColor = 'var(--success)';
+        btn.style.borderColor = 'var(--success)';
+        setTimeout(() => {
+          btn.textContent = 'Copy Code';
+          btn.style.backgroundColor = '';
+          btn.style.borderColor = '';
+        }, 2000);
+      }).catch(err => {
+        alert('Failed to copy to clipboard: ' + err);
+      });
+    }
+
+    // Download script as a .lua file
+    function downloadLuaFile() {
+      const code = generateLuaCode();
+      const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${appState.startMenuId || 'custom_menu'}.lua`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
