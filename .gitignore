@@ -1,0 +1,11 @@
+# Exclude game save folders to keep the repo clean and lightweight
+RealSaveGames/
+ModifiedSaveGames/
+99EverythingSaveGames/
+100% Chris Jacobs/
+100% Jennifer Mui/
+100% Mathias Nilson/
+
+# Exclude system files
+.DS_Store
+Thumbs.db
