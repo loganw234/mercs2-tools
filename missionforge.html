@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MissionForge → Contract</title>
+<style>
+  :root{
+    --bg:#14140f; --panel:#1c1c17; --panel2:#232320; --ink:#ece9df; --muted:#9c988a;
+    --line:#33322b; --accent:#e0a24a; --accent2:#6fb0c9; --good:#7bbf6a; --bad:#d9695f;
+    --teal:#16b3a3; --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+    --sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
+  a{color:var(--accent2)}
+  header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:600}
+  header .sub{color:var(--muted);font-size:12.5px}
+  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start}
+  @media(max-width:940px){.wrap{grid-template-columns:1fr}}
+  .editor{padding:18px 22px;min-width:0}
+  .out{position:sticky;top:0;height:100vh;border-left:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel)}
+  @media(max-width:940px){.out{position:static;height:auto}}
+  .out-head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+  .out-head .title{font-weight:600;margin-right:auto}
+  pre#code{margin:0;padding:16px;overflow:auto;flex:1;font-family:var(--mono);font-size:12.5px;line-height:1.55;white-space:pre;color:#dfe7d8}
+  section.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 14px}
+  section.card > h2{font-size:13px;margin:0 0 12px;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
+  .row:last-child{margin-bottom:0}
+  .f{display:flex;flex-direction:column;gap:4px}
+  .f label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  input,select,textarea{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:13px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  input[type=number]{width:88px}
+  .xyz input{width:74px}
+  textarea{width:100%;font-family:var(--mono);font-size:12px;resize:vertical}
+  button{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 12px;font:inherit;cursor:pointer}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);color:#161611;border-color:var(--accent);font-weight:600}
+  button.mini{padding:3px 8px;font-size:12px}
+  button.danger:hover{border-color:var(--bad);color:var(--bad)}
+  .obj{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;background:var(--panel2)}
+  .obj .hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .obj .hd .idx{font-family:var(--mono);color:var(--muted);font-size:12px}
+  .obj .hd .sp{margin-left:auto;display:flex;gap:4px}
+  .pill{font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid var(--line);color:var(--muted)}
+  .unit{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .unit:last-child{border-bottom:none}
+  .swatch{width:10px;height:10px;border-radius:50%;flex:none}
+  .tag{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .note{color:var(--muted);font-size:12px;margin:8px 0 0}
+  .err{color:var(--bad);font-size:12.5px;margin-top:8px;white-space:pre-wrap;font-family:var(--mono)}
+  .hint{color:var(--muted);font-size:11.5px}
+  .grpbadge{font-family:var(--mono);font-size:11px;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--good);color:#12160f;padding:8px 16px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1}
+  code.k{color:var(--accent2)}
+</style>
+</head>
+<body>
+<header>
+  <h1>MissionForge → Contract</h1>
+  <span class="sub">Paste a <code class="k">MISSIONFORGE_EXPORT</code> dump → tune the details → copy a ready <code class="k">Contract.Register{}</code></span>
+</header>
+
+<div class="wrap">
+  <div class="editor">
+    <section class="card">
+      <h2>1 · Paste export</h2>
+      <textarea id="paste" rows="6" placeholder="Paste the MISSIONFORGE_EXPORT = { ... } block from lua_loader_printf.log here"></textarea>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="loadBtn">Load</button>
+        <button id="sampleBtn">Load sample (the race)</button>
+        <span class="hint" id="loadInfo"></span>
+      </div>
+      <div class="err" id="err"></div>
+    </section>
+
+    <div id="editorBody" hidden>
+      <section class="card">
+        <h2>2 · Mission details</h2>
+        <div class="row">
+          <div class="f"><label>id</label><input id="m_id" style="width:200px"></div>
+          <div class="f"><label>title</label><input id="m_title" style="width:240px"></div>
+          <div class="f"><label>category</label><input id="m_category" style="width:130px"></div>
+        </div>
+        <div class="row">
+          <div class="f" style="flex:1;min-width:260px"><label>briefing</label><input id="m_briefing" style="width:100%"></div>
+        </div>
+        <div class="row">
+          <div class="f"><label>reward cash</label><input type="number" id="m_cash"></div>
+          <div class="f"><label>reward fuel</label><input type="number" id="m_fuel"></div>
+          <div class="f"><label>mode</label><select id="m_mode"><option value="sequential">sequential</option><option value="parallel">parallel</option></select></div>
+          <div class="f"><label>time limit (s, 0=none)</label><input type="number" id="m_time"></div>
+        </div>
+        <div class="row">
+          <div class="f" style="flex:1;min-width:240px"><label>fanfare message (shown on complete)</label><input id="m_fanfare" style="width:100%" placeholder="blank = &quot;<title> complete&quot;"></div>
+          <div class="f"><label>fanfare style</label>
+            <select id="m_fanfareType">
+              <option value="highscore">highscore</option>
+              <option value="hvtkill">hvtkill</option>
+              <option value="hvtcapture">hvtcapture</option>
+              <option value="bounty">bounty</option>
+              <option value="contact">contact</option>
+              <option value="support">support</option>
+              <option value="stockpile">stockpile</option>
+              <option value="landingzone">landingzone</option>
+              <option value="outfit">outfit</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3 · Player start / teleport</h2>
+        <div class="row">
+          <div class="f"><label>teleport heroes on accept</label>
+            <select id="startSel"></select>
+          </div>
+          <span class="hint" id="startHint"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>4 · Objectives</h2>
+        <div id="objList"></div>
+        <div class="row" style="margin-top:6px">
+          <button class="mini" id="addObj">+ add objective</button>
+          <label class="hint" style="display:flex;gap:6px;align-items:center;margin-left:auto">
+            <input type="checkbox" id="failLeash" style="width:auto"> fail if a hero strays past
+            <input type="number" id="failRadius" value="250" style="width:70px"> u
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>5 · Units</h2>
+        <p class="note" id="unitsNote"></p>
+        <div id="unitList"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="out">
+    <div class="out-head">
+      <span class="title">Contract.Register</span>
+      <button class="mini" id="copyBtn">Copy</button>
+      <button class="mini" id="dlBtn">Download .lua</button>
+    </div>
+    <pre id="code">Load an export to begin…</pre>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ---------- tiny DOM helper ---------- */
+const $ = id => document.getElementById(id);
+function el(tag, props, kids){
+  const e = document.createElement(tag);
+  if(props) for(const k in props){
+    if(k==='class') e.className=props[k];
+    else if(k==='html') e.innerHTML=props[k];
+    else if(k.startsWith('on')) e.addEventListener(k.slice(2), props[k]);
+    else if(k==='style') e.setAttribute('style',props[k]);
+    else e[k]=props[k];
+  }
+  (kids||[]).forEach(c=> e.appendChild(typeof c==='string'?document.createTextNode(c):c));
+  return e;
+}
+
+/* ---------- Lua-table parser (handles the MISSIONFORGE_EXPORT format) ---------- */
+function tokenize(s){
+  const t=[]; let i=0; const n=s.length;
+  while(i<n){
+    const c=s[i];
+    if(c===' '||c==='\t'||c==='\r'||c==='\n'){i++;continue;}
+    if(c==='-'&&s[i+1]==='-'){ while(i<n&&s[i]!=='\n')i++; continue; }
+    if(c==='{'||c==='}'||c===','||c==='='){ t.push({t:c}); i++; continue; }
+    if(c==='"'||c==="'"){ const q=c; i++; let str=''; while(i<n&&s[i]!==q){ if(s[i]==='\\'){str+=s[i+1];i+=2;} else {str+=s[i++];} } i++; t.push({t:'str',v:str}); continue; }
+    if(c==='-'||c==='.'||(c>='0'&&c<='9')){ let j=i+1; while(j<n&&/[0-9.eE]/.test(s[j])) j++; if(s[j]==='+'||s[j]==='-'){/*exp*/ while(j<n&&/[0-9.eE+\-]/.test(s[j]))j++;} t.push({t:'num',v:parseFloat(s.slice(i,j))}); i=j; continue; }
+    if(/[A-Za-z_]/.test(c)){ let j=i+1; while(j<n&&/[A-Za-z0-9_]/.test(s[j]))j++; t.push({t:'name',v:s.slice(i,j)}); i=j; continue; }
+    i++;
+  }
+  return t;
+}
+function parseLua(text){
+  let i = text.indexOf('MISSIONFORGE_EXPORT');
+  let brace = text.indexOf('{', i>=0?i:0);
+  if(brace<0) throw new Error("No '{' found — paste the whole MISSIONFORGE_EXPORT = { ... } block.");
+  const toks = tokenize(text.slice(brace));
+  let p=0;
+  const peek=()=>toks[p], eat=()=>toks[p++];
+  function value(){
+    const k=peek(); if(!k) throw new Error('Unexpected end of table.');
+    if(k.t==='{') return table();
+    if(k.t==='str'){eat();return k.v;}
+    if(k.t==='num'){eat();return k.v;}
+    if(k.t==='name'){eat(); if(k.v==='true')return true; if(k.v==='false')return false; if(k.v==='nil')return null; return k.v;}
+    throw new Error('Unexpected token '+k.t);
+  }
+  function table(){
+    eat(); const obj={}; const arr=[]; let keyed=false;
+    while(peek()&&peek().t!=='}'){
+      if(peek().t==='name'&&toks[p+1]&&toks[p+1].t==='='){ const key=eat().v; eat(); obj[key]=value(); keyed=true; }
+      else { arr.push(value()); }
+      if(peek()&&peek().t===',') eat();
+    }
+    if(peek()) eat();
+    if(keyed){ if(arr.length) obj.__arr=arr; return obj; }
+    return arr;
+  }
+  return value();
+}
+
+/* ---------- model ---------- */
+const TYPE_TO_BUILDER = { destroy:'destroy', reach:'reach', defend:'hold', collect:'interact',
+  escort:'escort', hold:'hold', interact:'interact', verify:'verify', extract:'extract' };
+const BUILDERS = ['destroy','reach','hold','defend','collect','escort','enter','interact','verify','extract','race'];
+const BUILDER_FIELDS = {
+  destroy:['targetGroup','quota'], reach:['at','radius'], hold:['at','radius','time'],
+  defend:['time','target'], collect:['radius','quota'], escort:['targetGroup','at','radius'],
+  enter:['target','seat'], interact:['at','radius','time'], verify:['targetGroup','capture','radius'],
+  extract:['at','radius','boardTime','heli'], race:['radius','time']
+};
+const DEFAULT_DESC = { destroy:'Eliminate the targets', reach:'Reach the location', hold:'Hold the position',
+  defend:'Defend the position', collect:'Collect the items', escort:'Escort to the destination',
+  enter:'Get in the vehicle', interact:'Interact with the objective', verify:'Neutralise the HVT',
+  extract:'Reach extraction', race:'Hit all the checkpoints' };
+
+let S = null; // state
+
+function sanitizeId(s){ return String(s||'forge_mission').toLowerCase().replace(/[^a-z0-9_]+/g,'_').replace(/^_+|_+$/g,'') || 'forge_mission'; }
+
+function buildState(p){
+  const meta = { id:sanitizeId(p.name), title:'', category:'CUSTOM', briefing:'',
+    cash:0, fuel:0, mode:'sequential', timeLimit:0, fanfare:'', fanfareType:'highscore' };
+  const spawns = (p.spawns||[]).map(s=>({x:+s.x, y:+s.y, z:+s.z, yaw:+(s.yaw||0)}));
+  const units = (p.units||[]).map(u=>({faction:u.faction||'', kind:u.kind||'infantry', spawn:u.spawn||'',
+    x:+u.x, y:+u.y, z:+u.z, yaw:+(u.yaw||0), group:String(u.group||'A'), role:'auto'}));
+  const objectives=[]; const raw=p.objectives||[];
+  for(let k=0;k<raw.length;k++){
+    const o=raw[k];
+    if(o.type==='spawn') continue;
+    if(o.type==='checkpoint'){
+      const cps=[]; let radius=+(o.radius||15), grp=String(o.group||'A');
+      while(k<raw.length && raw[k].type==='checkpoint'){ cps.push({x:+raw[k].x,y:+raw[k].y,z:+raw[k].z}); radius=+(raw[k].radius||radius); k++; }
+      k--;
+      objectives.push({ builder:'race', desc:'Hit all '+cps.length+' checkpoints', checkpoints:cps,
+        radius, time:120, group:grp, targetGroup:grp, optional:false, bonus:0,
+        x:cps[0].x, y:cps[0].y, z:cps[0].z, capture:false, boardTime:3, heli:'', quota:0, target:'', seat:'' });
+    } else {
+      const b = TYPE_TO_BUILDER[o.type] || 'reach';
+      const grp=String(o.group||'A');
+      objectives.push({ builder:b, desc:DEFAULT_DESC[b], x:+o.x, y:+o.y, z:+o.z, radius:+(o.radius||15),
+        yaw:+(o.yaw||0), time:(b==='hold'||b==='interact')?15:0, capture:(b==='verify'), boardTime:3, heli:'',
+        quota:0, target:'', seat:'', group:grp, targetGroup:grp, optional:false, bonus:0, checkpoints:null });
+    }
+  }
+  return { meta, spawns, units, objectives, start:{ mode: spawns.length?'all':'none' },
+           fail:{ leash:false, radius:250 }, anchor:p.anchor||null };
+}
+
+function groupsAvailable(){
+  const set=new Set();
+  S.units.forEach(u=>set.add(u.group));
+  S.objectives.forEach(o=>{ if(o.targetGroup) set.add(o.targetGroup); });
+  return [...set].sort();
+}
+function autoUnitsOfGroup(g){ return S.units.filter(u=>u.role==='auto' && u.group===g); }
+
+/* which units each objective consumes; the rest (auto, unreferenced) are "provided" */
+function classify(){
+  const destroyG=new Set(S.objectives.filter(o=>o.builder==='destroy').map(o=>o.targetGroup));
+  const singleG=new Set(S.objectives.filter(o=>o.builder==='verify'||o.builder==='escort').map(o=>o.targetGroup));
+  const usedFirst={}; const map=new Map();
+  for(const u of S.units){
+    if(u.role==='ignore'){ map.set(u,{role:'ignore',note:'ignored'}); continue; }
+    if(u.role==='provided'){ map.set(u,{role:'provided',note:'spawned at accept'}); continue; }
+    // auto
+    if(destroyG.has(u.group)){ map.set(u,{role:'destroy',note:'target of Destroy '+u.group}); continue; }
+    if(singleG.has(u.group) && !usedFirst[u.group]){ usedFirst[u.group]=true;
+      const ob=S.objectives.find(o=>(o.builder==='verify'||o.builder==='escort')&&o.targetGroup===u.group);
+      map.set(u,{role:'single',note:'target of '+(ob?ob.builder:'?')+' '+u.group}); continue; }
+    map.set(u,{role:'provided',note:'spawned at accept'});
+  }
+  return map;
+}
+
+/* ---------- Lua generation ---------- */
+function q(s){ return '"'+String(s==null?'':s).replace(/\\/g,'\\\\').replace(/"/g,'\\"')+'"'; }
+function nm(n){ if(n===undefined||n===null||isNaN(n)) return '0'; let r=Math.round(n*1000)/1000; return String(r); }
+function c3(o){ return '{ '+nm(o.x)+', '+nm(o.y)+', '+nm(o.z)+' }'; }
+function tuple(u){ let s='{ '+q(u.spawn)+', '+nm(u.x)+', '+nm(u.y)+', '+nm(u.z); if(u.yaw) s+=', '+nm(u.yaw); return s+' }'; }
+
+function genObjective(o, ind){
+  const fields=[]; fields.push('desc = '+q(o.desc));
+  let tail='';
+  switch(o.builder){
+    case 'destroy':{
+      const t=autoUnitsOfGroup(o.targetGroup);
+      if(t.length){
+        let lines = t.map(u=> ind+'    '+tuple(u)+',').join('\n');
+        if(o.quota) fields.push('quota = '+o.quota);
+        return ind+'Contract.Destroy({ '+fields.join(', ')+', spawns = {\n'+lines+'\n'+ind+'} '+optTail(o)+'}),';
+      } else {
+        fields.push('where = { area = { x='+nm(o.x)+', y='+nm(o.y)+', z='+nm(o.z)+', r='+nm(o.radius||60)+' }, kind = "vehicles" }');
+        if(o.quota) fields.push('quota = '+o.quota);
+      } break;
+    }
+    case 'reach': fields.push('at = '+c3(o), 'radius = '+nm(o.radius)); break;
+    case 'hold': fields.push('at = '+c3(o), 'radius = '+nm(o.radius)); if(o.time) fields.push('time = '+nm(o.time)); break;
+    case 'defend': if(o.time) fields.push('time = '+nm(o.time)); if(o.target) fields.push('target = '+q(o.target)); break;
+    case 'collect': fields.push('radius = '+nm(o.radius)); if(o.quota) fields.push('quota = '+o.quota); break;
+    case 'escort':{
+      const u=autoUnitsOfGroup(o.targetGroup)[0];
+      if(u) fields.push('spawn = '+tuple(u));
+      fields.push('to = '+c3(o), 'radius = '+nm(o.radius)); break;
+    }
+    case 'enter': if(o.target) fields.push('target = '+q(o.target)); if(o.seat) fields.push('seat = '+q(o.seat)); break;
+    case 'interact': fields.push('at = '+c3(o), 'radius = '+nm(o.radius)); if(o.time) fields.push('time = '+nm(o.time)); break;
+    case 'verify':{
+      const u=autoUnitsOfGroup(o.targetGroup)[0];
+      if(u) fields.push('spawn = '+tuple(u));
+      fields.push('capture = '+(o.capture?'true':'false')); if(o.radius) fields.push('radius = '+nm(o.radius)); break;
+    }
+    case 'extract': fields.push('at = '+c3(o), 'radius = '+nm(o.radius), 'boardTime = '+nm(o.boardTime)); if(o.boardTime>0 && o.heli) fields.push('heli = '+q(o.heli)); break;
+    case 'race':{
+      fields.push('radius = '+nm(o.radius)); if(o.time) fields.push('time = '+nm(o.time));
+      let lines=o.checkpoints.map(c=> ind+'    { '+nm(c.x)+', '+nm(c.y)+', '+nm(c.z)+' },').join('\n');
+      return ind+'Contract.Race({ '+fields.join(', ')+', checkpoints = {\n'+lines+'\n'+ind+'} '+optTail(o)+'}),';
+    }
+  }
+  const name = {destroy:'Destroy',reach:'Reach',hold:'Hold',defend:'Defend',collect:'Collect',
+    escort:'Escort',enter:'Enter',interact:'Interact',verify:'Verify',extract:'Extract'}[o.builder];
+  const opt=optFields(o); if(opt) fields.push(opt);
+  return ind+'Contract.'+name+'({ '+fields.join(', ')+' }),';
+}
+function optFields(o){ const a=[]; if(o.optional) a.push('optional = true'); if(o.bonus) a.push('bonus = '+o.bonus); return a.join(', '); }
+function optTail(o){ const s=optFields(o); return s?(', '+s+' '):''; }
+
+function genLua(){
+  if(!S) return '';
+  const m=S.meta; const L=[];
+  L.push('-- '+m.id+'.lua  —  generated by MissionForge. DEPLOY: scripts/OnLoad/ with a HIGHER');
+  L.push('-- lua_loader.ini [OnLoad] number than ContractFramework.lua (so it loads after the framework).');
+  L.push('');
+  L.push('if not _G.Contract then');
+  L.push('    Loader.Printf("'+m.id+': Contract framework not loaded - give ContractFramework.lua a LOWER [OnLoad] number")');
+  L.push('    return');
+  L.push('end');
+  L.push('');
+  L.push('Contract.Register({');
+  L.push('    id       = '+q(m.id)+',');
+  if(m.title) L.push('    title    = '+q(m.title)+',');
+  if(m.category) L.push('    category = '+q(m.category)+',');
+  if(m.briefing) L.push('    briefing = '+q(m.briefing)+',');
+  const rw=[]; if(m.cash) rw.push('cash = '+m.cash); if(m.fuel) rw.push('fuel = '+m.fuel);
+  if(rw.length) L.push('    reward   = { '+rw.join(', ')+' },');
+  if(m.mode==='parallel') L.push('    mode     = "parallel",');
+  if(m.timeLimit>0) L.push('    timeLimit = '+m.timeLimit+',');
+  if(S.start.mode!=='none' && S.spawns.length){
+    if(S.start.mode==='all' && S.spawns.length>1){
+      L.push('    start    = {   -- co-op: one spawn per hero (extra spawns ignored in single-player)');
+      S.spawns.forEach(s=> L.push('        { x = '+nm(s.x)+', y = '+nm(s.y)+', z = '+nm(s.z)+', yaw = '+nm(s.yaw)+' },'));
+      L.push('    },');
+    } else {
+      const s = S.spawns[S.start.mode==='all' ? 0 : S.start.mode];
+      if(s) L.push('    start    = { x = '+nm(s.x)+', y = '+nm(s.y)+', z = '+nm(s.z)+', yaw = '+nm(s.yaw)+' },');
+    }
+  }
+  // objectives
+  L.push('');
+  L.push('    objectives = {');
+  S.objectives.forEach(o=> L.push(genObjective(o,'        ')));
+  L.push('    },');
+  // fail conditions
+  if(S.fail.leash && S.anchor){
+    L.push('');
+    L.push('    fail = { Contract.StayInArea({ at = { '+nm(S.anchor.x)+', '+nm(S.anchor.y)+', '+nm(S.anchor.z)+' }, radius = '+nm(S.fail.radius)+' }) },');
+  }
+  // provided units -> fResolve spawn at accept
+  const cls=classify();
+  const provided=S.units.filter(u=> cls.get(u).role==='provided');
+  if(provided.length){
+    L.push('');
+    L.push('    fResolve = function(def)');
+    L.push('        -- provided units (not tied to an objective) - spawned when the contract is accepted:');
+    provided.forEach(u=>{
+      L.push('        Pg.Spawn('+q(u.spawn)+', '+nm(u.x)+', '+nm(u.y)+', '+nm(u.z)+(u.yaw?(', '+nm(u.yaw)):'')+')');
+    });
+    L.push('    end,');
+  }
+  if(m.fanfare || (m.fanfareType && m.fanfareType!=='highscore')){
+    L.push('');
+    if(m.fanfare) L.push('    fanfare     = '+q(m.fanfare)+',');
+    if(m.fanfareType && m.fanfareType!=='highscore') L.push('    fanfareType = '+q(m.fanfareType)+',');
+  }
+  L.push('})');
+  return L.join('\n');
+}
+
+/* ---------- rendering ---------- */
+function regen(){ $('code').textContent = genLua(); }
+
+function bindVal(id, obj, key, isNum){
+  const e=$(id); if(!e) return;
+  e.value = obj[key]!=null ? obj[key] : '';
+  e.addEventListener('input', ()=>{ obj[key] = isNum ? (parseFloat(e.value)||0) : e.value; regen(); });
+}
+
+function renderMeta(){
+  bindVal('m_id',S.meta,'id'); bindVal('m_title',S.meta,'title'); bindVal('m_category',S.meta,'category');
+  bindVal('m_briefing',S.meta,'briefing'); bindVal('m_cash',S.meta,'cash',true); bindVal('m_fuel',S.meta,'fuel',true);
+  bindVal('m_time',S.meta,'timeLimit',true); bindVal('m_fanfare',S.meta,'fanfare');
+  const md=$('m_mode'); md.value=S.meta.mode; md.onchange=()=>{S.meta.mode=md.value;regen();};
+  const ft=$('m_fanfareType'); ft.value=S.meta.fanfareType; ft.onchange=()=>{S.meta.fanfareType=ft.value;regen();};
+}
+
+function renderStart(){
+  const sel=$('startSel'); sel.innerHTML='';
+  sel.appendChild(el('option',{value:'none'},['none — start where the player is']));
+  if(S.spawns.length){
+    sel.appendChild(el('option',{value:'all'},[ S.spawns.length>1 ? ('all '+S.spawns.length+' spawns (co-op: 1 per hero)') : 'the spawn point' ]));
+    if(S.spawns.length>1) S.spawns.forEach((s,i)=> sel.appendChild(el('option',{value:String(i)},['only spawn #'+(i+1)+'  ('+nm(s.x)+', '+nm(s.z)+')'])));
+  }
+  sel.value=String(S.start.mode);
+  sel.onchange=()=>{ S.start.mode = (sel.value==='all'||sel.value==='none') ? sel.value : parseInt(sel.value); regen(); };
+  $('startHint').textContent = S.spawns.length>1 ? 'Co-op teleports each hero to a spawn in order; single-player uses the first.' :
+    (S.spawns.length? '' : 'No Player Spawn was placed.');
+}
+
+function fieldEl(o, name){
+  switch(name){
+    case 'at': return el('div',{class:'f'},[el('label',{},[o.builder==='escort'?'destination x / y / z':'x / y / z']),
+      el('div',{class:'xyz',style:'display:flex;gap:4px'},['x','y','z'].map(ax=>{
+        const inp=el('input',{type:'number',value:o[ax]}); inp.step='any';
+        inp.addEventListener('input',()=>{o[ax]=parseFloat(inp.value)||0;regen();}); return inp;}))]);
+    case 'radius': return numField(o,'radius','radius');
+    case 'time': return numField(o,'time', o.builder==='hold'||o.builder==='defend'?'hold time (s)':'time (s)');
+    case 'boardTime': return numField(o,'boardTime','board time (s · 0 = instant)');
+    case 'quota': return numField(o,'quota','quota (0=all)');
+    case 'heli': return textField(o,'heli','heli template (optional)',160);
+    case 'target': return textField(o,'target','target name (optional)',160);
+    case 'seat': return textField(o,'seat','seat (optional)',110);
+    case 'capture': { const box=el('input',{type:'checkbox'}); box.checked=!!o.capture; box.style.width='auto';
+      box.addEventListener('change',()=>{o.capture=box.checked;regen();});
+      return el('div',{class:'f'},[el('label',{},['capture (subdue)']),box]); }
+    case 'targetGroup': {
+      const gs=groupsAvailable(); const sel=el('select',{});
+      gs.forEach(g=>sel.appendChild(el('option',{value:g},['group '+g])));
+      sel.value=o.targetGroup; sel.addEventListener('change',()=>{o.targetGroup=sel.value;renderUnits();regen();});
+      const cnt=autoUnitsOfGroup(o.targetGroup).length;
+      return el('div',{class:'f'},[el('label',{},['targets ('+cnt+' unit'+(cnt===1?'':'s')+')']),sel]); }
+  }
+  return document.createTextNode('');
+}
+function numField(o,key,label){ const inp=el('input',{type:'number',value:o[key]}); inp.step='any';
+  inp.addEventListener('input',()=>{o[key]=parseFloat(inp.value)||0;regen();});
+  return el('div',{class:'f'},[el('label',{},[label]),inp]); }
+function textField(o,key,label,w){ const inp=el('input',{value:o[key]||''}); inp.style.width=(w||140)+'px';
+  inp.addEventListener('input',()=>{o[key]=inp.value;regen();});
+  return el('div',{class:'f'},[el('label',{},[label]),inp]); }
+
+function renderObjectives(){
+  const box=$('objList'); box.innerHTML='';
+  S.objectives.forEach((o,i)=>{
+    const card=el('div',{class:'obj'});
+    const bsel=el('select',{});
+    BUILDERS.forEach(b=>bsel.appendChild(el('option',{value:b},[b])));
+    bsel.value=o.builder;
+    bsel.addEventListener('change',()=>{ o.builder=bsel.value; if(o.builder!=='race')o.checkpoints=o.checkpoints; renderObjectives(); regen(); });
+    const hd=el('div',{class:'hd'},[
+      el('span',{class:'idx'},['#'+(i+1)]), bsel,
+      o.checkpoints?el('span',{class:'pill'},[o.checkpoints.length+' checkpoints']):document.createTextNode(''),
+      el('span',{class:'grpbadge'},['grp '+o.group]),
+      el('div',{class:'sp'},[
+        el('button',{class:'mini',onclick:()=>{if(i>0){S.objectives.splice(i-1,0,S.objectives.splice(i,1)[0]);renderObjectives();regen();}}},['↑']),
+        el('button',{class:'mini',onclick:()=>{if(i<S.objectives.length-1){S.objectives.splice(i+1,0,S.objectives.splice(i,1)[0]);renderObjectives();regen();}}},['↓']),
+        el('button',{class:'mini danger',onclick:()=>{S.objectives.splice(i,1);renderObjectives();regen();}},['✕']),
+      ])
+    ]);
+    card.appendChild(hd);
+    const r1=el('div',{class:'row'});
+    r1.appendChild(el('div',{class:'f',style:'flex:1;min-width:240px'},[el('label',{},['description']),
+      (()=>{const inp=el('input',{value:o.desc});inp.style.width='100%';inp.addEventListener('input',()=>{o.desc=inp.value;regen();});return inp;})()]));
+    card.appendChild(r1);
+    const r2=el('div',{class:'row'});
+    (BUILDER_FIELDS[o.builder]||[]).forEach(f=> r2.appendChild(fieldEl(o,f)));
+    // optional / bonus
+    const optBox=el('input',{type:'checkbox'}); optBox.checked=!!o.optional; optBox.style.width='auto';
+    optBox.addEventListener('change',()=>{o.optional=optBox.checked;regen();});
+    r2.appendChild(el('div',{class:'f'},[el('label',{},['optional']),optBox]));
+    r2.appendChild(numField(o,'bonus','bonus $'));
+    card.appendChild(r2);
+    box.appendChild(card);
+  });
+}
+
+function renderUnits(){
+  const box=$('unitList'); box.innerHTML='';
+  const cls=classify();
+  const FAC_RGB={GUERILLA:'#50dc50',ALLIED:'#50a0ff',CHINA:'#ff5050',"OC (OIL)":'#ffb428',PIRATE:'#c878ff',VZ:'#ebebeb',PROP:'#c8c8c8'};
+  let provided=0;
+  S.units.forEach((u,i)=>{
+    const info=cls.get(u); if(info.role==='provided') provided++;
+    const row=el('div',{class:'unit'});
+    row.appendChild(el('span',{class:'swatch',style:'background:'+(FAC_RGB[u.faction]||'#aaa')}));
+    const sp=el('input',{value:u.spawn}); sp.style.width='210px';
+    sp.addEventListener('input',()=>{u.spawn=sp.value;regen();});
+    row.appendChild(sp);
+    row.appendChild(el('span',{class:'grpbadge'},['grp']));
+    const gi=el('input',{value:u.group}); gi.style.width='42px';
+    gi.addEventListener('input',()=>{u.group=gi.value.toUpperCase();renderObjectives();regen();});
+    row.appendChild(gi);
+    const rsel=el('select',{});
+    [['auto','auto'],['provided','provided'],['ignore','ignore']].forEach(([v,t])=>rsel.appendChild(el('option',{value:v},[t])));
+    rsel.value=u.role; rsel.addEventListener('change',()=>{u.role=rsel.value;renderUnits();regen();});
+    row.appendChild(rsel);
+    row.appendChild(el('span',{class:'tag'},['→ '+info.note]));
+    box.appendChild(row);
+  });
+  $('unitsNote').innerHTML = S.units.length ?
+    ('Units in a group targeted by a <b>Destroy</b> become its spawn list; a <b>Verify/Escort</b> uses the first of its group. '+
+     'Everything else is <b>provided</b> ('+provided+') — spawned at accept via <code>fResolve</code>.') :
+    'No units were placed.';
+}
+
+function renderAll(){
+  $('editorBody').hidden=false;
+  renderMeta(); renderStart(); renderObjectives(); renderUnits();
+  const fl=$('failLeash'); fl.checked=S.fail.leash; fl.onchange=()=>{S.fail.leash=fl.checked;regen();};
+  const fr=$('failRadius'); fr.value=S.fail.radius; fr.oninput=()=>{S.fail.radius=parseFloat(fr.value)||0;regen();};
+  regen();
+}
+
+/* ---------- actions ---------- */
+function load(text){
+  $('err').textContent='';
+  try{
+    const p=parseLua(text);
+    if(!p || (typeof p!=='object')) throw new Error('Could not parse a table.');
+    S=buildState(p);
+    $('loadInfo').textContent = (S.units.length)+' units · '+(S.objectives.length)+' objective block(s) · '+(S.spawns.length)+' spawn';
+    renderAll();
+  }catch(e){ $('err').textContent='Parse error: '+e.message; $('editorBody').hidden=true; $('code').textContent='Load an export to begin…'; }
+}
+function addObjective(){
+  const g=groupsAvailable()[0]||'A';
+  S.objectives.push({builder:'reach',desc:DEFAULT_DESC.reach,x:S.anchor?S.anchor.x:0,y:S.anchor?S.anchor.y:0,z:S.anchor?S.anchor.z:0,
+    radius:15,yaw:0,time:0,capture:false,boardTime:3,heli:'',quota:0,target:'',seat:'',group:g,targetGroup:g,optional:false,bonus:0,checkpoints:null});
+  renderObjectives(); regen();
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1400); }
+
+$('loadBtn').onclick=()=>load($('paste').value);
+$('sampleBtn').onclick=()=>{ $('paste').value=SAMPLE; load(SAMPLE); };
+$('addObj').onclick=addObjective;
+$('copyBtn').onclick=()=>{ navigator.clipboard.writeText($('code').textContent).then(()=>toast('Copied')); };
+$('dlBtn').onclick=()=>{ const blob=new Blob([$('code').textContent],{type:'text/plain'});
+  const a=el('a',{href:URL.createObjectURL(blob),download:(S?S.meta.id:'contract')+'.lua'}); document.body.appendChild(a); a.click(); a.remove(); };
+
+/* ---------- sample: the user's race ---------- */
+const SAMPLE = `MISSIONFORGE_EXPORT = {
+  name = "forge_46",
+  anchor = { x=2772.02, y=-26.89, z=-362.44 },
+  spawns = {
+    { x=2651.78, y=-13.72, z=-1014.94, yaw=146.033 },
+  },
+  units = {
+    { faction="PROP", kind="prop", spawn="Veyron", placeholder="Veyron", x=2662.76, y=-11.50, z=-1032.93, yaw=137.154, group="A" },
+    { faction="PROP", kind="prop", spawn="Veyron", placeholder="Veyron", x=2667.54, y=-11.50, z=-1028.73, yaw=136.407, group="A" },
+  },
+  objectives = {
+    { type="checkpoint", x=2682.45, y=-13.75, z=-1048.43, radius=15.0, yaw=-81.034, group="A" },
+    { type="checkpoint", x=2845.48, y=-24.65, z=-1196.91, radius=15.0, yaw=127.443, group="A" },
+    { type="checkpoint", x=2905.01, y=-27.06, z=-1167.65, radius=15.0, yaw=35.465, group="A" },
+    { type="checkpoint", x=2924.88, y=-33.15, z=-1093.84, radius=15.0, yaw=7.425, group="A" },
+    { type="checkpoint", x=2933.77, y=-34.78, z=-1025.12, radius=15.0, yaw=7.425, group="A" },
+    { type="checkpoint", x=2927.34, y=-35.35, z=-943.48, radius=15.0, yaw=-5.754, group="A" },
+    { type="checkpoint", x=2937.54, y=-33.06, z=-863.70, radius=15.0, yaw=3.997, group="A" },
+    { type="checkpoint", x=2937.62, y=-29.97, z=-790.23, radius=15.0, yaw=9.184, group="A" },
+    { type="checkpoint", x=2945.57, y=-28.55, z=-695.87, radius=15.0, yaw=18.059, group="A" },
+    { type="checkpoint", x=2956.74, y=-28.47, z=-593.04, radius=15.0, yaw=5.359, group="A" },
+    { type="checkpoint", x=2963.57, y=-29.01, z=-505.72, radius=15.0, yaw=-1.185, group="A" },
+    { type="checkpoint", x=2930.01, y=-30.95, z=-408.18, radius=15.0, yaw=-29.355, group="A" },
+    { type="checkpoint", x=2854.84, y=-34.67, z=-310.38, radius=15.0, yaw=-37.134, group="A" },
+    { type="checkpoint", x=2740.97, y=-32.13, z=-203.18, radius=15.0, yaw=-37.134, group="A" },
+    { type="checkpoint", x=2691.99, y=-32.19, z=-115.17, radius=15.0, yaw=13.709, group="A" },
+    { type="checkpoint", x=2727.06, y=-31.95, z=-36.19, radius=15.0, yaw=26.499, group="A" },
+    { type="checkpoint", x=2726.39, y=-32.14, z=48.06, radius=15.0, yaw=-20.478, group="A" },
+    { type="checkpoint", x=2641.34, y=-31.23, z=99.83, radius=15.0, yaw=-72.948, group="A" },
+    { type="checkpoint", x=2556.34, y=-24.13, z=165.07, radius=15.0, yaw=-26.543, group="A" },
+    { type="checkpoint", x=2562.58, y=-12.33, z=256.37, radius=15.0, yaw=51.810, group="A" },
+    { type="checkpoint", x=2637.38, y=-13.00, z=314.23, radius=15.0, yaw=43.679, group="A" },
+    { type="checkpoint", x=2672.75, y=-19.85, z=403.60, radius=15.0, yaw=22.278, group="A" },
+    { type="checkpoint", x=2678.73, y=-29.19, z=485.13, radius=15.0, yaw=0.175, group="A" },
+    { type="checkpoint", x=2673.28, y=-33.97, z=545.14, radius=15.0, yaw=0.394, group="A" },
+    { type="extract", x=2673.43, y=-33.81, z=617.33, radius=15.0, yaw=-0.745, group="A" },
+  },
+}`;
+</script>
+</body>
+</html>
