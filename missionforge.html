@@ -53,6 +53,7 @@
   button.mini{padding:3px 8px;font-size:12px}
   button.danger:hover{border-color:var(--bad);color:var(--bad)}
   .obj{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;background:var(--panel2)}
+  .obj.flash{box-shadow:0 0 0 2px var(--accent),0 0 16px rgba(216,178,74,.45);transition:box-shadow .2s}
   .obj .hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
   .obj .hd .idx{font-family:var(--mono);color:var(--muted);font-size:12px}
   .obj .hd .sp{margin-left:auto;display:flex;gap:4px}
@@ -79,11 +80,12 @@
 <div class="wrap">
   <div class="editor">
     <section class="card">
-      <h2>1 · Paste export</h2>
-      <textarea id="paste" rows="6" placeholder="Paste the MISSIONFORGE_EXPORT = { ... } block from lua_loader_printf.log here"></textarea>
+      <h2>1 · Load / import</h2>
+      <textarea id="paste" rows="6" placeholder="Paste EITHER a MISSIONFORGE_EXPORT = { ... } dump from lua_loader_printf.log, OR a generated Contract.Register({ ... }) contract (to re-open & edit a saved/deployed mission)."></textarea>
       <div class="row" style="margin-top:10px">
         <button class="primary" id="loadBtn">Load</button>
-        <button id="sampleBtn">Load sample (the race)</button>
+        <button id="sampleBtn">Load race demo</button>
+        <button id="convoyBtn">Load convoy demo</button>
         <span class="hint" id="loadInfo"></span>
       </div>
       <div class="err" id="err"></div>
@@ -99,6 +101,9 @@
         </div>
         <div class="row">
           <div class="f" style="flex:1;min-width:260px"><label>briefing</label><input id="m_briefing" style="width:100%"></div>
+        </div>
+        <div class="row">
+          <div class="f" style="flex:1;min-width:260px"><label>intro radio line (spoken on accept)</label><input id="m_intro" style="width:100%" placeholder="e.g. Convoy&rsquo;s rolling — stay tight."></div>
         </div>
         <div class="row">
           <div class="f"><label>reward cash</label><input type="number" id="m_cash"></div>
@@ -170,7 +175,14 @@
         <h2>8 · Triggers (generic)</h2>
         <div id="trigList"></div>
         <div class="row" style="margin-top:6px"><button class="mini" id="addTrig">+ add trigger</button>
-          <span class="hint">a named trigger fires one or more support events (e.g. cross a line → airstrike elsewhere).</span></div>
+          <span class="hint">a named trigger fires one or more support events / AI orders (e.g. cross a line → airstrike elsewhere, or ambushers attack).</span></div>
+      </section>
+
+      <section class="card">
+        <h2>9 · AI Orders (per group)</h2>
+        <div id="wpList"></div>
+        <div class="row" style="margin-top:6px"><button class="mini" id="addWp">+ add order</button>
+          <span class="hint">command a unit <b>group</b> to move / patrol / defend / attack / hold / face. Provided units become framework-owned so they can be ordered. Fired immediately (after a short settle) or by a trigger.</span></div>
       </section>
 
     </div>
@@ -180,6 +192,7 @@
     <div class="out">
       <div class="out-head">
         <span class="title">Contract.Register</span>
+        <button class="mini" id="flowBtn" title="Visually wire triggers to support calls & AI orders">⛓ Flow graph</button>
         <button class="mini" id="copyBtn">Copy</button>
         <button class="mini" id="dlBtn">Download .lua</button>
       </div>
@@ -209,6 +222,7 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="flowgraph.js"></script>
 <script>
 "use strict";
 
@@ -227,26 +241,33 @@ function el(tag, props, kids){
   return e;
 }
 
-/* ---------- Lua-table parser (handles the MISSIONFORGE_EXPORT format) ---------- */
+/* ---------- Lua-table parser (handles the MISSIONFORGE_EXPORT format AND a Contract.Register block:
+   it also tokenizes ( ) , dotted names like Contract.Reach, and captures whole function...end bodies) ---------- */
 function tokenize(s){
   const t=[]; let i=0; const n=s.length;
   while(i<n){
     const c=s[i];
     if(c===' '||c==='\t'||c==='\r'||c==='\n'){i++;continue;}
-    if(c==='-'&&s[i+1]==='-'){ while(i<n&&s[i]!=='\n')i++; continue; }
-    if(c==='{'||c==='}'||c===','||c==='='){ t.push({t:c}); i++; continue; }
+    if(c==='-'&&s[i+1]==='-'){ if(s[i+2]==='['&&s[i+3]==='['){ const e=s.indexOf(']]',i+4); i=(e<0?n:e+2); } else { while(i<n&&s[i]!=='\n')i++; } continue; }
+    if(c==='{'||c==='}'||c===','||c==='='||c==='('||c===')'){ t.push({t:c}); i++; continue; }
     if(c==='"'||c==="'"){ const q=c; i++; let str=''; while(i<n&&s[i]!==q){ if(s[i]==='\\'){str+=s[i+1];i+=2;} else {str+=s[i++];} } i++; t.push({t:'str',v:str}); continue; }
-    if(c==='-'||c==='.'||(c>='0'&&c<='9')){ let j=i+1; while(j<n&&/[0-9.eE]/.test(s[j])) j++; if(s[j]==='+'||s[j]==='-'){/*exp*/ while(j<n&&/[0-9.eE+\-]/.test(s[j]))j++;} t.push({t:'num',v:parseFloat(s.slice(i,j))}); i=j; continue; }
-    if(/[A-Za-z_]/.test(c)){ let j=i+1; while(j<n&&/[A-Za-z0-9_]/.test(s[j]))j++; t.push({t:'name',v:s.slice(i,j)}); i=j; continue; }
+    if(c==='['&&s[i+1]==='['){ const e=s.indexOf(']]',i+2); t.push({t:'str',v:s.slice(i+2,e<0?n:e)}); i=(e<0?n:e+2); continue; }
+    if((c>='0'&&c<='9')||((c==='-'||c==='.')&&/[0-9]/.test(s[i+1]))){ let j=i+1; while(j<n&&/[0-9.eE]/.test(s[j])) j++; if((s[j]==='+'||s[j]==='-')&&/[eE]/.test(s[j-1])){ j++; while(j<n&&/[0-9]/.test(s[j]))j++; } t.push({t:'num',v:parseFloat(s.slice(i,j))}); i=j; continue; }
+    if(/[A-Za-z_]/.test(c)){ let j=i+1; while(j<n&&/[A-Za-z0-9_.]/.test(s[j]))j++; const nm=s.slice(i,j);
+      if(nm==='function'){ let depth=1, k=j; while(k<n&&depth>0){ const d=s[k];   // capture the whole function ... end body
+          if(d==='"'||d==="'"){ const q=d;k++; while(k<n&&s[k]!==q){ if(s[k]==='\\')k+=2; else k++; } k++; continue; }
+          if(d==='-'&&s[k+1]==='-'){ if(s[k+2]==='['&&s[k+3]==='['){ const e=s.indexOf(']]',k+4); k=(e<0?n:e+2); } else { while(k<n&&s[k]!=='\n')k++; } continue; }
+          if(/[A-Za-z_]/.test(d)){ let m=k+1; while(m<n&&/[A-Za-z0-9_]/.test(s[m]))m++; const w=s.slice(k,m);
+            if(w==='function'||w==='if'||w==='for'||w==='while') depth++; else if(w==='end') depth--; k=m; continue; }
+          k++;
+        }
+        t.push({t:'fn',v:s.slice(i,k)}); i=k; continue; }
+      t.push({t:'name',v:nm}); i=j; continue; }
     i++;
   }
   return t;
 }
-function parseLua(text){
-  let i = text.indexOf('MISSIONFORGE_EXPORT');
-  let brace = text.indexOf('{', i>=0?i:0);
-  if(brace<0) throw new Error("No '{' found — paste the whole MISSIONFORGE_EXPORT = { ... } block.");
-  const toks = tokenize(text.slice(brace));
+function parseTokens(toks){
   let p=0;
   const peek=()=>toks[p], eat=()=>toks[p++];
   function value(){
@@ -254,7 +275,11 @@ function parseLua(text){
     if(k.t==='{') return table();
     if(k.t==='str'){eat();return k.v;}
     if(k.t==='num'){eat();return k.v;}
-    if(k.t==='name'){eat(); if(k.v==='true')return true; if(k.v==='false')return false; if(k.v==='nil')return null; return k.v;}
+    if(k.t==='fn'){eat();return {__fn:k.v};}
+    if(k.t==='name'){ eat();
+      if(peek()&&peek().t==='('){ eat(); const arg=(peek()&&peek().t!==')')?value():null; if(peek()&&peek().t===')')eat(); return {__call:k.v, arg:arg}; }  // Contract.Reach({...})
+      if(k.v==='true')return true; if(k.v==='false')return false; if(k.v==='nil')return null; return k.v;
+    }
     throw new Error('Unexpected token '+k.t);
   }
   function table(){
@@ -270,27 +295,60 @@ function parseLua(text){
   }
   return value();
 }
+function parseLua(text){
+  let i = text.indexOf('MISSIONFORGE_EXPORT');
+  let brace = text.indexOf('{', i>=0?i:0);
+  if(brace<0) throw new Error("No '{' found — paste the whole MISSIONFORGE_EXPORT = { ... } block.");
+  return parseTokens(tokenize(text.slice(brace)));
+}
+function parseContractLua(text){
+  const i = text.indexOf('Contract.Register'); if(i<0) throw new Error("No 'Contract.Register(' found.");
+  const brace = text.indexOf('{', text.indexOf('(', i));
+  if(brace<0) throw new Error("Couldn't find the Contract.Register table.");
+  return parseTokens(tokenize(text.slice(brace)));
+}
 
 /* ---------- model ---------- */
 const TYPE_TO_BUILDER = { destroy:'destroy', reach:'reach', defend:'hold', collect:'interact',
-  escort:'escort', hold:'hold', interact:'interact', verify:'verify', extract:'extract' };
-const BUILDERS = ['destroy','reach','hold','defend','collect','escort','enter','interact','verify','extract','race'];
+  escort:'escort', hold:'hold', interact:'interact', verify:'verify', extract:'extract', survive:'survive', chase:'chase' };
+const BUILDERS = ['destroy','reach','hold','defend','collect','escort','enter','interact','verify','extract','race','survive','chase'];
 const BUILDER_FIELDS = {
   destroy:['targetGroup','quota'], reach:['at','radius'], hold:['at','radius','time'],
   defend:['time','target'], collect:['radius','quota'], escort:['targetGroup','at','radius'],
   enter:['target','seat'], interact:['at','radius','time'], verify:['targetGroup','capture','radius'],
-  extract:['at','radius','boardTime','heli'], race:['radius','time']
+  extract:['at','radius','boardTime','heli'], race:['radius','time'], survive:['time','target'], chase:['targetGroup','at','radius','time']
 };
 const DEFAULT_DESC = { destroy:'Eliminate the targets', reach:'Reach the location', hold:'Hold the position',
   defend:'Defend the position', collect:'Collect the items', escort:'Escort to the destination',
   enter:'Get in the vehicle', interact:'Interact with the objective', verify:'Neutralise the HVT',
-  extract:'Reach extraction', race:'Hit all the checkpoints' };
+  extract:'Reach extraction', race:'Hit all the checkpoints', survive:'Hold out', chase:'Run down the target before it escapes' };
 
 const FACTIONS = ['Allied','China','Guerilla','OC','Pirate','VZ','PMC'];   // Pg.GetGuidByName names (framework side)
-const SUPPORT_EFFECTS = ['artillery','flyby','heli','reinforce','custom'];
+const SUPPORT_EFFECTS = ['artillery','flyby','bombingrun','heli','reinforce','music','vfx','damage','vo','say','custom'];
 const SUPPORT_FIELDS = { artillery:['ammo','count'], flyby:['vehicle','altitude','speed'],
-  heli:['template','heliCount'], reinforce:['spawns','deliver','faction'], custom:['note'] };
-const TRIG_KINDS = ['proximity','recurring','once','onDestroy'];
+  bombingrun:['vehicle','ammo','count','altitude','speed'], heli:['template','heliCount','stagger','spread'],
+  reinforce:['spawns','deliver','faction'], music:['cue'], vfx:['particle','count'], damage:['target','pct'], vo:['lines'],
+  say:['text','hold'], custom:['note'] };
+// curated native template lists for the pick-fields; the "custom…" option lets users type anything bespoke
+const ORDNANCE_LIST = ['Gunship Shell','Artillery Shell','Rocket Artillery Projectile','Artillery Smoke Shell','Blast Cannon Shell',
+  'HE Autocannon Shell','AP Autocannon Shell','Tank Shell (Artillery)','Tank Shell (Sabot)',
+  'Bomb','Smart Bomb Projectile','Laser Guided Bomb Projectile','Cluster Bomb Projectile','Fuel Air Bomb Projectile',
+  'Daisy Cutter Projectile','MOAB Projectile','Bunker Buster Projectile','Nuclear Bunker Buster Projectile','Carpet Bomb Projectile',
+  'Cruise Missile Projectile','Strategic Missile Projectile','Airstrike AA Missile','Vehicle AT Missile','TOW Missile',
+  'Smoke Grenade Projectile','Flare Projectile','C4 Projectile'];
+const AIRCRAFT_LIST = ['Support Vehicle (Autogunship)','Support Vehicle (AC130)','Support Vehicle (A10)','Support Vehicle (OV10)',
+  'Support Vehicle (Q5)','Support Vehicle (Mig27)','Support Vehicle (F35)','Support Vehicle (Tucano)','Support Vehicle (Predator)',
+  'Support Vehicle (B2)','Support Vehicle (C130)','Support Vehicle (F117)','Support Vehicle (Cruise Missile)',
+  'Support Vehicle (727)','Support Vehicle (Cessna)','Support Vehicle (Transport)',
+  'Support Vehicle (A10) low altitude','Support Vehicle (C130) low altitude','Support Vehicle (B2) low altitude'];
+const MUSIC_CUES = ['mu_fac_ch_kickass_01','mu_fac_ch_threat_01','mu_fac_gr_kickass_01','mu_fac_gr_threat_01',
+  'mu_fac_oc_kickass_01','mu_fac_oc_threat_01','mu_fac_an_kickass_01','mu_pmc_panicloop_01','stop'];   // ..._kickass=combat, ..._threat=tension, stop=back to normal
+const VFX_PARTICLES = ['global_particle_explosion_flash_large','global_particle_airstrike_moab','global_particle_airstrike_daisycutter',
+  'global_particle_airstrike_fuelairbomb','global_particle_airstrike_cruisemissile','global_particle_airstrike_carpetbomb_LOD0',
+  'global_particle_airstrike_clusterbomb','global_particle_airstrike_missile','global_particle_airstrike_artillery',
+  'global_particle_airstrike_bunkerbuster','global_particle_airstrike_tactnuke','global_particle_dirtexplosion_large',
+  'global_particle_dustexplosion','global_particle_env_firesmokeplume_infinite','global_particle_env_smokeplume_distance_tall'];
+const TRIG_KINDS = ['proximity','recurring','once','onDestroy','health','objective','cleared','all','count'];
 const FAC_MAP_RGB = { GUERILLA:'#50dc50', ALLIED:'#50a0ff', CHINA:'#ff5050', 'OC (OIL)':'#ffb428',
   PIRATE:'#c878ff', VZ:'#ebebeb', PROP:'#c8c8c8' };
 
@@ -304,8 +362,12 @@ let S = null; // state
 function sanitizeId(s){ return String(s||'forge_mission').toLowerCase().replace(/[^a-z0-9_]+/g,'_').replace(/^_+|_+$/g,'') || 'forge_mission'; }
 
 function buildState(p){
-  const meta = { id:sanitizeId(p.name), title:'', category:'CUSTOM', briefing:'',
+  const meta = { id:sanitizeId(p.name), title:'', category:'CUSTOM', briefing:'', intro:'',
     cash:0, fuel:0, mode:'sequential', timeLimit:0, fanfare:'', fanfareType:'highscore' };
+  if(p.meta && typeof p.meta==='object'){                             // optional hand-authored meta (samples); forge exports omit it
+    ['title','category','briefing','intro','mode','fanfare','fanfareType'].forEach(k=>{ if(p.meta[k]!=null) meta[k]=String(p.meta[k]); });
+    ['cash','fuel','timeLimit'].forEach(k=>{ if(p.meta[k]!=null) meta[k]=+p.meta[k]; });
+  }
   const spawns = (p.spawns||[]).map(s=>({x:+s.x, y:+s.y, z:+s.z, yaw:+(s.yaw||0)}));
   const units = (p.units||[]).map(u=>({faction:u.faction||'', kind:u.kind||'infantry', spawn:u.spawn||'',
     x:+u.x, y:+u.y, z:+u.z, yaw:+(u.yaw||0), group:String(u.group||'A'), role:'auto'}));
@@ -323,18 +385,110 @@ function buildState(p){
     } else {
       const b = TYPE_TO_BUILDER[o.type] || 'reach';
       const grp=String(o.group||'A');
-      objectives.push({ builder:b, desc:DEFAULT_DESC[b], x:+o.x, y:+o.y, z:+o.z, radius:+(o.radius||15),
-        yaw:+(o.yaw||0), time:(b==='hold'||b==='interact')?15:0, capture:(b==='verify'), boardTime:3, heli:'',
-        quota:0, target:'', seat:'', group:grp, targetGroup:grp, optional:false, bonus:0, checkpoints:null });
+      objectives.push({ builder:b, desc:(o.desc!=null?String(o.desc):DEFAULT_DESC[b]), x:+o.x, y:+o.y, z:+o.z, radius:+(o.radius||15),
+        yaw:+(o.yaw||0), time:(o.time!=null?+o.time:(b==='survive'?60:((b==='hold'||b==='interact')?15:0))), capture:(b==='verify'), boardTime:3, heli:'',
+        quota:0, target:'', seat:'', group:grp, targetGroup:grp, optional:false, bonus:0, checkpoints:null,
+        msg:(o.msg!=null?String(o.msg):'') });
     }
   }
   const support = (p.support||[]).map((v,i)=>({ id:'sup'+(i+1), effect:v.effect||'artillery', x:+v.x,y:+v.y,z:+v.z, radius:+(v.radius||15),
-    owner:'', ammo:'Gunship Shell', count:5, vehicle:'Support Vehicle (Autogunship)', altitude:120, speed:55, template:'AH1Z', heliCount:3,
-    spawns:'', deliver:'spawn', faction:'', note:'', trigMode:'immediate', delay:3, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'' }));
-  const triggers = (p.triggers||[]).map((t,i)=>({ id:'trig'+(i+1), kind:'proximity', x:+t.x,y:+t.y,z:+t.z, radius:+(t.radius||15),
-    interval:10, limit:0, delay:3, target:'nearest', fires:[] }));
-  return { meta, spawns, units, objectives, relations:[], support, triggers,
+    owner:'', ammo:'Gunship Shell', count:5, vehicle:'Support Vehicle (Autogunship)', altitude:120, speed:55, template:'AH1Z', heliCount:3, stagger:0, spread:0,
+    spawns:'', deliver:'spawn', faction:'', note:'', text:'', hold:5, cue:'', particle:'', pct:0, lines:'', kill:false, target:String(v.target||''), trigMode:'immediate', delay:3, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'', group:String(v.group||'') }));
+  const triggers = (p.triggers||[]).map((t,i)=>({ id:'trig'+(i+1), kind:String(t.kind||'proximity'), x:+t.x,y:+t.y,z:+t.z, radius:+(t.radius||15),
+    interval:+(t.interval||10), limit:+(t.limit||0), delay:+(t.delay||3), target:String(t.target||'nearest'),
+    pct:+(t.pct||50), index:+(t.index||1), faction:String(t.faction||''), inputs:(t.inputs||[]).map(String), need:+(t.need||1),
+    fires:(t.fires||[]).map(String), group:String(t.group||'') }));
+  // auto-wire by shared group: a trigger fires the support(s) carrying its group tag (same convention
+  // that binds units<->objectives in the forge). So a forge-placed trigger + support in one group arrive
+  // pre-connected. Freely rewire in the flow graph / forms. (Orders keep their own immediate default.)
+  triggers.forEach(t=>{ if(!t.group) return;
+    support.forEach(v=>{ if(v.group && v.group===t.group){ v.trigMode='ref'; v.ref=t.id; } }); });
+  // AI orders: forge points grouped by unit-group. Patrol points merge into ONE route; each OTHER
+  // behavior in a group becomes its own waypoint (so a group can e.g. move, then later hold). An order
+  // may carry trig="<trigger group>" to stay dormant until that trigger fires (else immediate).
+  const byG={}; (p.orders||[]).forEach(o=>{ const g=String(o.group||'A'); (byG[g]=byG[g]||[]).push(o); });
+  const waypoints=[]; let wpn=0;
+  function mkWp(base,g,trig){ const wp=Object.assign({ id:'wp'+(++wpn), group:g, behavior:'move', points:null, at:null, loop:true, radius:12,
+    speed:0, target:'', role:'passenger', action:'Cower', distance:120, trigMode:'immediate', delay:1.5, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'' }, base);
+    if(trig){ wp.trigMode='ref'; wp._trig=String(trig); } return wp; }
+  Object.keys(byG).sort().forEach(g=>{
+    const items=byG[g], patrol=items.filter(o=>(o.behavior||'move')==='patrol');
+    if(patrol.length) waypoints.push(mkWp({ behavior:'patrol', points:patrol.map(o=>({x:+o.x,y:+o.y,z:+o.z})), radius:+(patrol[0].radius||12) }, g, patrol[patrol.length-1].trig));
+    const byBeh={}; items.forEach(o=>{ const b=o.behavior||'move'; if(b==='patrol') return; (byBeh[b]=byBeh[b]||[]).push(o); });
+    Object.keys(byBeh).forEach(beh=>{ const a=byBeh[beh], o=a[a.length-1];
+      waypoints.push(mkWp({ behavior:beh, at:{x:+o.x,y:+o.y,z:+o.z}, radius:+(o.radius||12) }, g, o.trig)); });
+  });
+  // resolve each order's trig="<trigger group>" to that trigger's id (dormant until it fires)
+  waypoints.forEach(w=>{ if(w._trig){ const t=triggers.find(t=>t.group===w._trig); if(t){ w.ref=t.id; w.trigMode='ref'; } else w.trigMode='immediate'; delete w._trig; } });
+  // relations (optional; hand-authored samples / future export). Accepts { a=,b=,set= } or {"A","B","set"} tuples.
+  const relations = (p.relations||[]).map(r=>({ a:String(r.a||r[0]||''), b:String(r.b||r[1]||''), set:String(r.set||r[2]||'neutral') }))
+                                     .filter(r=>r.a && r.b);
+  return { meta, spawns, units, objectives, relations, support, triggers, waypoints,
            start:{ mode: spawns.length?'all':'none' }, fail:{ leash:false, radius:250 }, anchor:p.anchor||null };
+}
+
+/* ---------- reverse: a parsed Contract.Register table -> editor state S (for round-trip editing) ---------- */
+function xyzOf(v){ if(v==null) return null; if(Array.isArray(v)) return {x:+v[0]||0,y:+v[1]||0,z:+v[2]||0}; return {x:+v.x||0,y:+v.y||0,z:+v.z||0}; }
+function fromTrig(o, trig){          // reverse genTrig(): a support/order .trigger -> trigMode + its param
+  if(trig==null){ o.trigMode='immediate'; return; }
+  if(typeof trig==='string'){ o.trigMode=trig||'immediate'; return; }
+  if(typeof trig==='object'){
+    if('ref' in trig){ o.trigMode='ref'; o.ref=String(trig.ref); }
+    else if('once' in trig){ o.trigMode='once'; o.delay=+trig.once; }
+    else if('recurring' in trig){ o.trigMode='recurring'; o.interval=+trig.recurring; if('limit' in trig)o.limit=+trig.limit; }
+    else if('proximity' in trig){ o.trigMode='proximity'; o.proxRadius=+trig.proximity; }
+    else if('onDestroy' in trig){ o.trigMode='onDestroy'; o.onDestroy=String(trig.onDestroy); }
+  }
+}
+function fromContractLua(reg){
+  if(!reg || typeof reg!=='object' || Array.isArray(reg)) throw new Error('That is not a Contract.Register({ ... }) table.');
+  const rw = reg.reward||{};
+  const meta = { id:sanitizeId(reg.id), title:reg.title||'', category:reg.category||'CUSTOM', briefing:reg.briefing||'', intro:reg.intro||'',
+    cash:+rw.cash||0, fuel:+rw.fuel||0, mode:reg.mode||'sequential', timeLimit:+reg.timeLimit||0, fanfare:reg.fanfare||'', fanfareType:reg.fanfareType||'highscore' };
+  const spawns=[];
+  if(reg.start){ (Array.isArray(reg.start)?reg.start:[reg.start]).forEach(s=>{ const c=xyzOf(s); spawns.push({x:c.x,y:c.y,z:c.z,yaw:+(s.yaw||0)}); }); }
+  const units=[];
+  (reg.units||[]).forEach(u=>{ const c=xyzOf(u); units.push({faction:'',kind:'vehicle',spawn:u.spawn||u.template||'',x:c.x,y:c.y,z:c.z,yaw:+(u.yaw||0),group:String(u.group||'A'),role:'auto'}); });
+  if(reg.fResolve && reg.fResolve.__fn){    // pull provided units back out of the fResolve Pg.Spawn lines
+    const re=/Pg\.Spawn\(\s*"([^"]*)"\s*,\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*,\s*(-?[0-9.]+)\s*(?:,\s*(-?[0-9.]+))?\s*\)/g; let m;
+    while((m=re.exec(reg.fResolve.__fn))) units.push({faction:'',kind:'infantry',spawn:m[1],x:+m[2],y:+m[3],z:+m[4],yaw:+(m[5]||0),group:'provided',role:'provided'});
+  }
+  let egrp=0;
+  const objectives=(reg.objectives||[]).map(node=>{
+    if(!node||!node.__call) return null;
+    const b=String(node.__call).replace(/^Contract\./,'').toLowerCase(); const a=node.arg||{};
+    const o={ builder:b, desc:a.desc||DEFAULT_DESC[b]||'', msg:a.msg||'', x:0,y:0,z:0, radius:+(a.radius||a.escapeRadius||15), yaw:0,
+      time:+(a.time||0), capture:!!a.capture, boardTime:(a.boardTime!=null?+a.boardTime:3), heli:a.heli||'', quota:+(a.quota||0),
+      target:(typeof a.target==='string'?a.target:''), seat:a.seat||'', group:'A', targetGroup:'A', optional:!!a.optional, bonus:+(a.bonus||0), checkpoints:null };
+    const at=xyzOf(a.at||a.to||a.escapeAt); if(at){ o.x=at.x;o.y=at.y;o.z=at.z; }
+    if(b==='race' && Array.isArray(a.checkpoints)){ o.checkpoints=a.checkpoints.map(c=>xyzOf(c));
+      if(o.checkpoints[0]){ o.x=o.checkpoints[0].x;o.y=o.checkpoints[0].y;o.z=o.checkpoints[0].z; } }
+    const sp=a.spawns||(a.spawn?[a.spawn]:null);   // destroy spawns / verify+escort spawn -> a synthetic unit group it targets
+    if(Array.isArray(sp) && sp.length && Array.isArray(sp[0])){ const g='enemy'+(++egrp);
+      sp.forEach(t=>units.push({faction:'',kind:'infantry',spawn:t[0],x:+t[1]||0,y:+t[2]||0,z:+t[3]||0,yaw:+(t[4]||0),group:g,role:'auto'}));
+      o.group=g; o.targetGroup=g; }
+    return o;
+  }).filter(Boolean);
+  const relations=(reg.relations||[]).map(r=>({a:String(r[0]||r.a||''),b:String(r[1]||r.b||''),set:String(r[2]||r.set||'neutral')})).filter(r=>r.a&&r.b);
+  const support=(reg.support||[]).map((v,i)=>{ const c=xyzOf(v.at)||{x:0,y:0,z:0}; const s={ id:v.id||('sup'+(i+1)), effect:v.effect||'artillery',
+    x:c.x,y:c.y,z:c.z, radius:+(v.radius||15), owner:v.owner||'', ammo:v.ammo||'Gunship Shell', count:+(v.count||5),
+    vehicle:v.vehicle||'Support Vehicle (Autogunship)', altitude:+(v.altitude||120), speed:+(v.speed||55), template:v.template||'AH1Z', heliCount:+(v.count||3),
+    stagger:+(v.stagger||0), spread:+(v.spread||0), spawns:(v.spawns||[]).join(', '), deliver:v.deliver||'spawn', faction:v.faction||'', note:'',
+    text:v.text||'', hold:+(v.hold||5), cue:v.cue||'', particle:v.particle||'', pct:+(v.pct||0), lines:(v.lines||[]).join(', '), kill:!!v.kill, target:v.target||'',
+    trigMode:'immediate', delay:3, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'', group:'' };
+    fromTrig(s, v.trigger); return s; });
+  const triggers=(reg.triggers||[]).map((t,i)=>{ const c=xyzOf(t.at)||{x:0,y:0,z:0}; return { id:t.id||('trig'+(i+1)), kind:t.kind||'proximity',
+    x:c.x,y:c.y,z:c.z, radius:+(t.radius||15), interval:+(t.interval||10), limit:+(t.limit||0), delay:+(t.delay||3), target:t.target||'nearest',
+    pct:+(t.pct||50), index:+(t.index||1), faction:t.faction||'', inputs:(t.inputs||[]).map(String), need:+(t.need||1), fires:(t.fires||[]).map(String), group:'' }; });
+  const waypoints=(reg.waypoints||[]).map((w,i)=>{ const o={ id:w.id||('wp'+(i+1)), group:String(w.group||'A'), behavior:w.behavior||'move',
+    points:null, at:null, loop:w.loop!==false, radius:+(w.radius||12), speed:+(w.speed||0), target:(typeof w.target==='string'?w.target:''),
+    role:w.role||'passenger', action:w.action||'Cower', distance:+(w.distance||120), trigMode:'immediate', delay:1.5, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'' };
+    if(Array.isArray(w.points)) o.points=w.points.map(p=>xyzOf(p)); else if(w.at) o.at=xyzOf(w.at);
+    fromTrig(o, w.trigger); return o; });
+  let ax=0,az=0,ac=0; const acc=(x,z)=>{ if(isFinite(x)&&isFinite(z)){ ax+=x;az+=z;ac++; } };
+  units.forEach(u=>acc(u.x,u.z)); objectives.forEach(o=>acc(o.x,o.z)); spawns.forEach(s=>acc(s.x,s.z));
+  return { meta, spawns, units, objectives, relations, support, triggers, waypoints,
+           start:{ mode: spawns.length?'all':'none' }, fail:{ leash:false, radius:250 }, anchor: ac?{x:ax/ac,y:0,z:az/ac}:{x:0,y:0,z:0} };
 }
 
 function groupsAvailable(){
@@ -347,7 +501,7 @@ function autoUnitsOfGroup(g){ return S.units.filter(u=>u.role==='auto' && u.grou
 
 /* which units each objective consumes; the rest (auto, unreferenced) are "provided" */
 function classify(){
-  const destroyG=new Set(S.objectives.filter(o=>o.builder==='destroy').map(o=>o.targetGroup));
+  const destroyG=new Set(S.objectives.filter(o=>o.builder==='destroy'||o.builder==='chase').map(o=>o.targetGroup));
   const singleG=new Set(S.objectives.filter(o=>o.builder==='verify'||o.builder==='escort').map(o=>o.targetGroup));
   const usedFirst={}; const map=new Map();
   for(const u of S.units){
@@ -371,6 +525,7 @@ function tuple(u){ let s='{ '+q(u.spawn)+', '+nm(u.x)+', '+nm(u.y)+', '+nm(u.z);
 
 function genObjective(o, ind){
   const fields=[]; fields.push('desc = '+q(o.desc));
+  if(o.msg) fields.push('msg = '+q(o.msg));         // radio line spoken when this objective starts
   let tail='';
   switch(o.builder){
     case 'destroy':{
@@ -401,6 +556,13 @@ function genObjective(o, ind){
       fields.push('capture = '+(o.capture?'true':'false')); if(o.radius) fields.push('radius = '+nm(o.radius)); break;
     }
     case 'extract': fields.push('at = '+c3(o), 'radius = '+nm(o.radius), 'boardTime = '+nm(o.boardTime)); if(o.boardTime>0 && o.heli) fields.push('heli = '+q(o.heli)); break;
+    case 'survive': if(o.time) fields.push('time = '+nm(o.time)); if(o.target) fields.push('target = '+q(o.target)); break;
+    case 'chase':{
+      const t=autoUnitsOfGroup(o.targetGroup);
+      fields.push('escapeAt = '+c3(o)); if(o.radius) fields.push('escapeRadius = '+nm(o.radius)); if(o.time) fields.push('time = '+nm(o.time));
+      const sp = t.length ? (', spawns = {\n'+t.map(u=> ind+'    '+tuple(u)+',').join('\n')+'\n'+ind+'} ') : '';
+      return ind+'Contract.Chase({ '+fields.join(', ')+sp+optTail(o)+'}),';
+    }
     case 'race':{
       fields.push('radius = '+nm(o.radius)); if(o.time) fields.push('time = '+nm(o.time));
       let lines=o.checkpoints.map(c=> ind+'    { '+nm(c.x)+', '+nm(c.y)+', '+nm(c.z)+' },').join('\n');
@@ -408,7 +570,7 @@ function genObjective(o, ind){
     }
   }
   const name = {destroy:'Destroy',reach:'Reach',hold:'Hold',defend:'Defend',collect:'Collect',
-    escort:'Escort',enter:'Enter',interact:'Interact',verify:'Verify',extract:'Extract'}[o.builder];
+    escort:'Escort',enter:'Enter',interact:'Interact',verify:'Verify',extract:'Extract',survive:'Survive'}[o.builder];
   const opt=optFields(o); if(opt) fields.push(opt);
   return ind+'Contract.'+name+'({ '+fields.join(', ')+' }),';
 }
@@ -431,6 +593,7 @@ function genLua(){
   if(m.title) L.push('    title    = '+q(m.title)+',');
   if(m.category) L.push('    category = '+q(m.category)+',');
   if(m.briefing) L.push('    briefing = '+q(m.briefing)+',');
+  if(m.intro) L.push('    intro    = '+q(m.intro)+',');   // opening radio line
   const rw=[]; if(m.cash) rw.push('cash = '+m.cash); if(m.fuel) rw.push('fuel = '+m.fuel);
   if(rw.length) L.push('    reward   = { '+rw.join(', ')+' },');
   if(m.mode==='parallel') L.push('    mode     = "parallel",');
@@ -455,10 +618,20 @@ function genLua(){
     L.push('');
     L.push('    fail = { Contract.StayInArea({ at = { '+nm(S.anchor.x)+', '+nm(S.anchor.y)+', '+nm(S.anchor.z)+' }, radius = '+nm(S.fail.radius)+' }) },');
   }
-  // provided units -> fResolve spawn at accept
+  // provided units (not tied to an objective). With AI orders present they become def.units:
+  // framework-OWNED & grouped, so orders can command them (and they're cleaned up on finish).
+  // Without orders, keep the classic fResolve spawn-at-accept (unchanged for existing missions).
   const cls=classify();
   const provided=S.units.filter(u=> cls.get(u).role==='provided');
-  if(provided.length){
+  const hasOrders = !!(S.waypoints && S.waypoints.length);
+  if(provided.length && hasOrders){
+    L.push('');
+    L.push('    units = {   -- framework-owned & grouped, so the AI orders below can command them');
+    provided.forEach(u=>{
+      L.push('        { spawn = '+q(u.spawn)+', x = '+nm(u.x)+', y = '+nm(u.y)+', z = '+nm(u.z)+(u.yaw?(', yaw = '+nm(u.yaw)):'')+', group = '+q(u.group)+' },');
+    });
+    L.push('    },');
+  } else if(provided.length){
     L.push('');
     L.push('    fResolve = function(def)');
     L.push('        -- provided units (not tied to an objective) - spawned when the contract is accepted:');
@@ -490,6 +663,12 @@ function genLua(){
     S.triggers.forEach(t=> L.push('        '+genTrigger(t)));
     L.push('    },');
   }
+  if(S.waypoints && S.waypoints.length){
+    L.push('');
+    L.push('    waypoints = {   -- AI orders: direct each unit group to move / patrol / defend / attack / hold');
+    S.waypoints.forEach(w=> L.push('        '+genWaypoint(w)));
+    L.push('    },');
+  }
   L.push('})');
   return L.join('\n');
 }
@@ -508,10 +687,18 @@ function genSupport(v){
   if(v.owner) f.push('owner = '+q(v.owner));
   if(v.effect==='artillery'){ if(v.ammo) f.push('ammo = '+q(v.ammo)); if(v.count) f.push('count = '+v.count); }
   else if(v.effect==='flyby'){ if(v.vehicle) f.push('vehicle = '+q(v.vehicle)); if(v.altitude) f.push('altitude = '+nm(v.altitude)); if(v.speed) f.push('speed = '+nm(v.speed)); }
-  else if(v.effect==='heli'){ if(v.template) f.push('template = '+q(v.template)); if(v.heliCount) f.push('count = '+v.heliCount); }
+  else if(v.effect==='bombingrun'){ if(v.vehicle) f.push('vehicle = '+q(v.vehicle)); if(v.ammo) f.push('ammo = '+q(v.ammo)); if(v.count) f.push('count = '+v.count); if(v.altitude) f.push('altitude = '+nm(v.altitude)); if(v.speed) f.push('speed = '+nm(v.speed)); }
+  else if(v.effect==='heli'){ if(v.template) f.push('template = '+q(v.template)); if(v.heliCount) f.push('count = '+v.heliCount);
+    if(v.stagger) f.push('stagger = '+nm(v.stagger)); if(v.spread) f.push('spread = '+nm(v.spread)); }
   else if(v.effect==='reinforce'){ const sp=(v.spawns||'').split(',').map(s=>s.trim()).filter(Boolean);
     if(sp.length) f.push('spawns = { '+sp.map(q).join(', ')+' }');
-    if(v.deliver==='copter'){ f.push('deliver = "copter"'); if(v.faction) f.push('faction = '+q(v.faction)); } }
+    if(v.deliver && v.deliver!=='spawn') f.push('deliver = '+q(v.deliver));
+    if(v.deliver==='copter' && v.faction) f.push('faction = '+q(v.faction)); }
+  else if(v.effect==='music'){ if(v.cue) f.push('cue = '+q(v.cue)); }
+  else if(v.effect==='vfx'){ if(v.particle) f.push('particle = '+q(v.particle)); if(v.count) f.push('count = '+v.count); }
+  else if(v.effect==='damage'){ if(v.target) f.push('target = '+q(v.target)); f.push('pct = '+nm(v.pct||0)); if(v.kill) f.push('kill = true'); }
+  else if(v.effect==='vo'){ const ls=(v.lines||'').split(',').map(s=>s.trim()).filter(Boolean); if(ls.length) f.push('lines = { '+ls.map(q).join(', ')+' }'); }
+  else if(v.effect==='say'){ if(v.text) f.push('text = '+q(v.text)); if(v.hold) f.push('hold = '+nm(v.hold)); }
   else if(v.effect==='custom'){ f.push('fn = function(ev, task) --[[ '+String(v.note||'custom effect').replace(/\]/g,'')+' ]] end'); }
   f.push(genTrig(v));
   return '{ '+f.join(', ')+' },';
@@ -522,8 +709,30 @@ function genTrigger(t){
   if(t.kind==='recurring'){ f.push('interval = '+nm(t.interval||10)); if(t.limit) f.push('limit = '+t.limit); }
   if(t.kind==='once') f.push('delay = '+nm(t.delay||3));
   if(t.kind==='onDestroy') f.push('target = '+q(t.target||'nearest'));
+  if(t.kind==='health'){ f.push('pct = '+nm(t.pct||50)); if(t.target) f.push('target = '+q(t.target)); }
+  if(t.kind==='objective') f.push('index = '+nm(t.index||1));
+  if(t.kind==='cleared'){ f.push('at = { '+nm(t.x)+', '+nm(t.y)+', '+nm(t.z)+' }', 'radius = '+nm(t.radius)); if(t.faction) f.push('faction = '+q(t.faction)); }
+  if(t.kind==='all'||t.kind==='count'){ f.push('inputs = { '+(t.inputs||[]).filter(Boolean).map(q).join(', ')+' }'); if(t.kind==='count') f.push('need = '+nm(t.need||1)); }
   const fires=(t.fires||[]).filter(Boolean);
   if(fires.length) f.push('fires = { '+fires.map(q).join(', ')+' }');
+  return '{ '+f.join(', ')+' },';
+}
+function genWaypoint(w){
+  const f=['id = '+q(w.id), 'group = '+q(w.group), 'behavior = '+q(w.behavior)];
+  const usesAt={move:1,defend:1,attack:1,face:1};
+  if(w.behavior==='patrol' && w.points && w.points.length){
+    f.push('points = { '+w.points.map(p=>'{ '+nm(p.x)+', '+nm(p.y)+', '+nm(p.z)+' }').join(', ')+' }');
+    if(w.loop===false) f.push('loop = false');
+  } else if(usesAt[w.behavior] && w.at){
+    f.push('at = { '+nm(w.at.x)+', '+nm(w.at.y)+', '+nm(w.at.z)+' }');
+  }
+  if(w.behavior==='defend' && w.radius) f.push('radius = '+nm(w.radius));
+  if((w.behavior==='attack'||w.behavior==='follow'||w.behavior==='enter') && w.target) f.push('target = '+q(w.target));
+  if(w.behavior==='enter' && w.role) f.push('role = '+q(w.role));
+  if(w.behavior==='flee' && w.distance) f.push('distance = '+nm(w.distance));
+  if(w.behavior==='animate' && w.action) f.push('action = '+q(w.action));
+  if(w.speed && {move:1,patrol:1,defend:1,attack:1,follow:1,flee:1}[w.behavior]) f.push('speed = '+nm(w.speed));
+  f.push(genTrig(w));   // reuse the support inline-trigger form (immediate/ref/proximity/once/…)
   return '{ '+f.join(', ')+' },';
 }
 
@@ -556,15 +765,24 @@ function renderRelations(){
 /* ---- 7 · support ---- */
 function supField(o,fn){
   switch(fn){
-    case 'ammo': return textField(o,'ammo','ammo template',150);
-    case 'count': return numField(o,'count','shells');
-    case 'vehicle': return textField(o,'vehicle','support vehicle',210);
+    case 'ammo': return pickField(o,'ammo',ORDNANCE_LIST,'ordnance');
+    case 'count': return numField(o,'count','count');
+    case 'cue': return pickField(o,'cue',MUSIC_CUES,'music cue');
+    case 'particle': return pickField(o,'particle',VFX_PARTICLES,'effect');
+    case 'target': return textField(o,'target','target group / name',150);
+    case 'pct': return numField(o,'pct','health % (0=destroy)');
+    case 'lines': return textField(o,'lines','VO keys (comma-sep)',260);
+    case 'vehicle': return pickField(o,'vehicle',AIRCRAFT_LIST,'aircraft');
     case 'altitude': return numField(o,'altitude','altitude');
     case 'speed': return numField(o,'speed','speed');
     case 'template': return textField(o,'template','heli template',150);
     case 'heliCount': return numField(o,'heliCount','# helis');
+    case 'text': return textField(o,'text','radio message',260);
+    case 'hold': return numField(o,'hold','on-screen (s)');
+    case 'stagger': return numField(o,'stagger','stagger s (0=def 1.6)');
+    case 'spread': return numField(o,'spread','spread u (0=def 45)');
     case 'spawns': return textField(o,'spawns','spawn templates (comma-separated)',320);
-    case 'deliver': { const s=el('select',{}); [['spawn','direct spawn'],['copter','copter drop']].forEach(([v,t])=>s.appendChild(el('option',{value:v},[t])));
+    case 'deliver': { const s=el('select',{}); [['spawn','direct spawn'],['copter','copter drop'],['paradrop','paradrop (plane)']].forEach(([v,t])=>s.appendChild(el('option',{value:v},[t])));
       s.value=o.deliver||'spawn'; s.addEventListener('change',()=>{o.deliver=s.value;renderSupport();regen();}); return el('div',{class:'f'},[el('label',{},['deliver']),s]); }
     case 'faction': return el('div',{class:'f'},[el('label',{},['copter faction']), facSelect(o.faction,true,v=>{o.faction=v;regen();})]);
     case 'note': return textField(o,'note','note (for the custom fn stub)',260);
@@ -590,7 +808,7 @@ function triggerEditor(o){
 function renderSupport(){
   const box=$('supList'); box.innerHTML='';
   S.support.forEach((v,i)=>{
-    const card=el('div',{class:'obj'});
+    const card=el('div',{class:'obj'}); card.dataset.nid=v.id;
     const idIn=el('input',{value:v.id}); idIn.style.width='110px'; idIn.addEventListener('input',()=>{v.id=idIn.value;regen();});
     const eff=el('select',{}); SUPPORT_EFFECTS.forEach(e=>eff.appendChild(el('option',{value:e},[e]))); eff.value=v.effect;
     eff.addEventListener('change',()=>{v.effect=eff.value;renderSupport();regen();});
@@ -614,7 +832,7 @@ function renderSupport(){
 function renderTriggers(){
   const box=$('trigList'); box.innerHTML='';
   S.triggers.forEach((t,i)=>{
-    const card=el('div',{class:'obj'});
+    const card=el('div',{class:'obj'}); card.dataset.nid=t.id;
     const idIn=el('input',{value:t.id}); idIn.style.width='110px'; idIn.addEventListener('input',()=>{t.id=idIn.value;renderSupport();regen();});
     const kind=el('select',{}); TRIG_KINDS.forEach(k=>kind.appendChild(el('option',{value:k},[k]))); kind.value=t.kind;
     kind.addEventListener('change',()=>{t.kind=kind.value;renderTriggers();regen();});
@@ -625,20 +843,107 @@ function renderTriggers(){
     if(t.kind==='recurring'){ r1.appendChild(numField(t,'interval','interval (s)')); r1.appendChild(numField(t,'limit','limit (0=∞)')); }
     if(t.kind==='once') r1.appendChild(numField(t,'delay','delay (s)'));
     if(t.kind==='onDestroy') r1.appendChild(textField(t,'target','target ("nearest"/name)',180));
+    if(t.kind==='cleared'){ r1.appendChild(xyzField(t)); r1.appendChild(numField(t,'radius','radius'));
+      r1.appendChild(el('div',{class:'f'},[el('label',{},['faction']), facSelect(t.faction,true,v=>{t.faction=v;regen();})])); }
+    if(t.kind==='health'){ r1.appendChild(numField(t,'pct','fire below %')); r1.appendChild(textField(t,'target','target group / name',160)); }
+    if(t.kind==='objective') r1.appendChild(numField(t,'index','after objective #'));
+    if(t.kind==='count') r1.appendChild(numField(t,'need','need N inputs'));
     if(r1.children.length) card.appendChild(r1);
+    if(t.kind==='all'||t.kind==='count'){          // LOGIC GATE: pick the input triggers that feed it
+      const gr=el('div',{class:'row'}); const gchips=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap'});
+      const others=S.triggers.filter(x=>x.id!==t.id).map(x=>x.id);
+      if(!others.length) gchips.appendChild(el('span',{class:'hint'},['(add more triggers to feed this gate)']));
+      others.forEach(gid=>{ const lb=el('label',{class:'hint',style:'display:flex;gap:4px;align-items:center'});
+        const cb=el('input',{type:'checkbox',style:'width:auto'}); cb.checked=(t.inputs||[]).indexOf(gid)>=0;
+        cb.addEventListener('change',()=>{ t.inputs=t.inputs||[]; if(cb.checked){if(t.inputs.indexOf(gid)<0)t.inputs.push(gid);} else t.inputs=t.inputs.filter(x=>x!==gid); regen(); });
+        lb.appendChild(cb); lb.appendChild(document.createTextNode(gid)); gchips.appendChild(lb); });
+      gr.appendChild(el('div',{class:'f'},[el('label',{},['inputs (triggers)']),gchips])); card.appendChild(gr);
+    }
     const fr=el('div',{class:'row'});
     const chips=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap'});
-    const ids=supportIds();
-    if(!ids.length) chips.appendChild(el('span',{class:'hint'},['(add support events first)']));
+    const ids=supportIds().concat(waypointIds());
+    if(!ids.length) chips.appendChild(el('span',{class:'hint'},['(add a support event or AI order first)']));
     ids.forEach(sid=>{ const lb=el('label',{class:'hint',style:'display:flex;gap:4px;align-items:center'});
       const cb=el('input',{type:'checkbox',style:'width:auto'}); cb.checked=(t.fires||[]).indexOf(sid)>=0;
       cb.addEventListener('change',()=>{ t.fires=t.fires||[]; if(cb.checked){ if(t.fires.indexOf(sid)<0)t.fires.push(sid);} else t.fires=t.fires.filter(x=>x!==sid); regen(); });
       lb.appendChild(cb); lb.appendChild(document.createTextNode(sid)); chips.appendChild(lb); });
-    fr.appendChild(el('div',{class:'f'},[el('label',{},['fires supports']),chips]));
+    fr.appendChild(el('div',{class:'f'},[el('label',{},['fires (supports / orders)']),chips]));
     card.appendChild(fr);
     box.appendChild(card);
   });
 }
+
+/* ---- 9 · AI orders (waypoints) ---- */
+const WP_BEHAVIORS=['move','patrol','defend','attack','hold','face','follow','flee','enter','deploy','animate'];
+function waypointIds(){ return (S.waypoints||[]).map(w=>w.id).filter(Boolean); }
+function wpTrigRow(w){
+  const row=el('div',{class:'row'});
+  // full parity with support self-arm modes (all six run through the framework's shared armTrigger)
+  const mode=el('select',{});
+  [['immediate','immediate'],['once','once (after delay)'],['recurring','recurring'],['proximity','player proximity'],['onDestroy','on target destroyed'],['ref','when a trigger fires']]
+    .forEach(([v,t])=>mode.appendChild(el('option',{value:v},[t])));
+  mode.value=w.trigMode||'immediate'; mode.addEventListener('change',()=>{w.trigMode=mode.value;renderWaypoints();regen();});
+  row.appendChild(el('div',{class:'f'},[el('label',{},['fires when']),mode]));
+  if(w.trigMode==='ref'){ const s=el('select',{}); const ids=S.triggers.map(t=>t.id);
+    if(!ids.length) s.appendChild(el('option',{value:''},['(add a trigger)']));
+    ids.forEach(id=>s.appendChild(el('option',{value:id},[id]))); s.value=w.ref||'';
+    s.addEventListener('change',()=>{w.ref=s.value;regen();}); row.appendChild(el('div',{class:'f'},[el('label',{},['fired by trigger']),s])); }
+  else if(w.trigMode==='once') row.appendChild(numField(w,'delay','delay (s)'));
+  else if(w.trigMode==='recurring'){ row.appendChild(numField(w,'interval','interval (s)')); row.appendChild(numField(w,'limit','limit (0=∞)')); }
+  else if(w.trigMode==='proximity') row.appendChild(numField(w,'proxRadius','player within (u)'));
+  else if(w.trigMode==='onDestroy') row.appendChild(textField(w,'onDestroy','target ("nearest" or a name)',200));
+  return row;
+}
+function renderWaypoints(){
+  const box=$('wpList'); if(!box) return; box.innerHTML='';
+  S.waypoints=S.waypoints||[];
+  const note=$('wpNote'); if(note) note.textContent = S.waypoints.length ? '' : 'No AI orders. Place them in-forge (AI ORDERS menu) or add one here to direct a unit group.';
+  S.waypoints.forEach((w,i)=>{
+    const card=el('div',{class:'obj'}); card.dataset.nid=w.id;
+    const idIn=el('input',{value:w.id}); idIn.style.width='84px'; idIn.addEventListener('input',()=>{w.id=idIn.value;renderTriggers();regen();});
+    const grp=el('select',{}); const gs=groupsAvailable(); if(gs.indexOf(w.group)<0) gs.push(w.group);
+    gs.sort().forEach(g=>grp.appendChild(el('option',{value:g},['group '+g]))); grp.value=w.group;
+    grp.addEventListener('change',()=>{w.group=grp.value;regen();});
+    const beh=el('select',{}); WP_BEHAVIORS.forEach(b=>beh.appendChild(el('option',{value:b},[b]))); beh.value=w.behavior;
+    beh.addEventListener('change',()=>{w.behavior=beh.value;renderWaypoints();regen();});
+    card.appendChild(el('div',{class:'hd'},[el('span',{class:'idx'},['id']),idIn,grp,beh,
+      el('div',{class:'sp'},[el('button',{class:'mini danger',onclick:()=>{S.waypoints.splice(i,1);renderWaypoints();renderTriggers();regen();}},['✕'])])]));
+    const r1=el('div',{class:'row'});
+    if(w.behavior==='patrol'){
+      r1.appendChild(el('div',{class:'f'},[el('label',{},['route']),el('span',{class:'hint'},[String((w.points||[]).length)+' point(s) placed in-forge'])]));
+      const lp=el('label',{class:'hint',style:'display:flex;gap:4px;align-items:center'});
+      const cb=el('input',{type:'checkbox',style:'width:auto'}); cb.checked=w.loop!==false;
+      cb.addEventListener('change',()=>{w.loop=cb.checked;regen();}); lp.appendChild(cb); lp.appendChild(document.createTextNode('loop'));
+      r1.appendChild(el('div',{class:'f'},[el('label',{},[' ']),lp]));
+    } else if(w.behavior==='hold'){
+      r1.appendChild(el('div',{class:'f'},[el('label',{},[' ']),el('span',{class:'hint'},['stands ground where the units spawn'])]));
+    } else if(w.behavior==='deploy'){
+      r1.appendChild(el('span',{class:'hint'},['unloads passengers from these vehicles']));
+    } else if(w.behavior==='follow'){
+      r1.appendChild(textField(w,'target','follow group (blank = players)',180));
+    } else if(w.behavior==='enter'){
+      r1.appendChild(textField(w,'target','vehicle group / name',170));
+      const rs=el('select',{}); ['passenger','driver','gunner'].forEach(v=>rs.appendChild(el('option',{value:v},[v]))); rs.value=w.role||'passenger';
+      rs.addEventListener('change',()=>{w.role=rs.value;regen();}); r1.appendChild(el('div',{class:'f'},[el('label',{},['seat']),rs]));
+    } else if(w.behavior==='flee'){
+      r1.appendChild(numField(w,'distance','run distance (u)'));
+    } else if(w.behavior==='animate'){
+      r1.appendChild(textField(w,'action','action (Cower / Stand)',190));
+    } else if((w.behavior==='move'||w.behavior==='defend'||w.behavior==='attack'||w.behavior==='face') && w.at){
+      r1.appendChild(xyzField(w.at));
+    }
+    if(w.behavior==='defend') r1.appendChild(numField(w,'radius','hold radius'));
+    if(w.behavior==='attack') r1.appendChild(textField(w,'target','target group (blank = players)',160));
+    if({move:1,patrol:1,defend:1,attack:1,follow:1,flee:1}[w.behavior]) r1.appendChild(numField(w,'speed','speed 0..1 (0=default)'));
+    card.appendChild(r1);
+    card.appendChild(wpTrigRow(w));
+    box.appendChild(card);
+  });
+}
+function addWaypoint(){ const a=anchorXYZ(); const g=(groupsAvailable()[0]||'A'); S.waypoints=S.waypoints||[];
+  S.waypoints.push({ id:'wp'+(S.waypoints.length+1), group:g, behavior:'move', at:{x:a.x,y:a.y,z:a.z}, points:null, loop:true,
+    radius:12, speed:0, target:'', role:'passenger', action:'Cower', distance:120, trigMode:'immediate', delay:1.5, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'' });
+  renderWaypoints(); renderTriggers(); regen(); }
 
 /* ---- 9 · map preview (auto-fits now; overlays map.png once calibrated) ---- */
 function collectMapPoints(){
@@ -649,6 +954,10 @@ function collectMapPoints(){
   S.spawns.forEach((s,i)=> pts.push({x:s.x,z:s.z,c:'#16b3a3',t:'spawn'+(i+1)}));
   S.support.forEach(v=> pts.push({x:v.x,z:v.z,c:'#ff8c3a',t:v.effect,ring:v.radius}));
   S.triggers.forEach(t=> pts.push({x:t.x,z:t.z,c:'#c878ff',t:'trig '+(t.id||''),ring:t.radius}));
+  (S.waypoints||[]).forEach(w=>{
+    if(w.behavior==='patrol' && w.points){ w.points.forEach((p,i)=>pts.push({x:p.x,z:p.z,c:'#b4e63c',t:w.group+':p'+(i+1)})); }
+    else if(w.at){ pts.push({x:w.at.x,z:w.at.z,c:'#b4e63c',t:w.group+':'+w.behavior,ring:(w.behavior==='defend'?w.radius:0)}); }
+  });
   return pts;
 }
 function vbStr(v){ return v.x.toFixed(1)+' '+v.y.toFixed(1)+' '+v.w.toFixed(1)+' '+v.h.toFixed(1); }
@@ -686,7 +995,7 @@ function renderMap(){
   const legend='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--muted);align-items:center">'+
     '<button class="mini" id="mapFit">⤢ fit</button><button class="mini" id="mapFull">🗺 full map</button>'+
     '<span>● units</span><span style="color:#e0a24a">● obj</span><span style="color:#16b3a3">● spawn</span>'+
-    '<span style="color:#ff8c3a">● support</span><span style="color:#c878ff">● trigger</span>'+
+    '<span style="color:#ff8c3a">● support</span><span style="color:#c878ff">● trigger</span><span style="color:#b4e63c">● AI order</span>'+
     '<span style="margin-left:auto">scroll = zoom · drag = pan</span></div>';
   box.innerHTML=s+legend;
   wireMapInteraction();
@@ -721,7 +1030,7 @@ function bindVal(id, obj, key, isNum){
 
 function renderMeta(){
   bindVal('m_id',S.meta,'id'); bindVal('m_title',S.meta,'title'); bindVal('m_category',S.meta,'category');
-  bindVal('m_briefing',S.meta,'briefing'); bindVal('m_cash',S.meta,'cash',true); bindVal('m_fuel',S.meta,'fuel',true);
+  bindVal('m_briefing',S.meta,'briefing'); bindVal('m_intro',S.meta,'intro'); bindVal('m_cash',S.meta,'cash',true); bindVal('m_fuel',S.meta,'fuel',true);
   bindVal('m_time',S.meta,'timeLimit',true); bindVal('m_fanfare',S.meta,'fanfare');
   const md=$('m_mode'); md.value=S.meta.mode; md.onchange=()=>{S.meta.mode=md.value;regen();};
   const ft=$('m_fanfareType'); ft.value=S.meta.fanfareType; ft.onchange=()=>{S.meta.fanfareType=ft.value;regen();};
@@ -771,6 +1080,15 @@ function numField(o,key,label){ const inp=el('input',{type:'number',value:o[key]
 function textField(o,key,label,w){ const inp=el('input',{value:o[key]||''}); inp.style.width=(w||140)+'px';
   inp.addEventListener('input',()=>{o[key]=inp.value;regen();});
   return el('div',{class:'f'},[el('label',{},[label]),inp]); }
+function pickField(o,key,list,label,w){   // dropdown of known templates + a "custom…" free-text fallback for anything bespoke
+  const wrap=el('div',{class:'f'}); wrap.appendChild(el('label',{},[label]));
+  const sel=el('select',{}); list.forEach(v=>sel.appendChild(el('option',{value:v},[v]))); sel.appendChild(el('option',{value:'__c'},['custom…']));
+  const custom = o[key] && list.indexOf(o[key])<0;
+  sel.value = custom ? '__c' : (o[key]||list[0]);
+  const inp=el('input',{value:o[key]||''}); inp.style.width=(w||210)+'px'; inp.style.marginTop='4px'; inp.placeholder='custom template'; inp.style.display=custom?'block':'none';
+  sel.addEventListener('change',()=>{ if(sel.value==='__c'){ inp.style.display='block'; inp.focus(); } else { inp.style.display='none'; o[key]=sel.value; regen(); } });
+  inp.addEventListener('input',()=>{ o[key]=inp.value; regen(); });
+  const box=el('div',{}); box.appendChild(sel); box.appendChild(inp); wrap.appendChild(box); return wrap; }
 
 function renderObjectives(){
   const box=$('objList'); box.innerHTML='';
@@ -794,6 +1112,8 @@ function renderObjectives(){
     const r1=el('div',{class:'row'});
     r1.appendChild(el('div',{class:'f',style:'flex:1;min-width:240px'},[el('label',{},['description']),
       (()=>{const inp=el('input',{value:o.desc});inp.style.width='100%';inp.addEventListener('input',()=>{o.desc=inp.value;regen();});return inp;})()]));
+    r1.appendChild(el('div',{class:'f',style:'flex:1;min-width:200px'},[el('label',{},['radio line (on start)']),
+      (()=>{const inp=el('input',{value:o.msg||''});inp.style.width='100%';inp.addEventListener('input',()=>{o.msg=inp.value;regen();});return inp;})()]));
     card.appendChild(r1);
     const r2=el('div',{class:'row'});
     (BUILDER_FIELDS[o.builder]||[]).forEach(f=> r2.appendChild(fieldEl(o,f)));
@@ -839,7 +1159,7 @@ function renderUnits(){
 function renderAll(){
   $('editorBody').hidden=false;
   renderMeta(); renderStart(); renderObjectives(); renderUnits();
-  renderRelations(); renderSupport(); renderTriggers(); wireCalib();
+  renderRelations(); renderSupport(); renderTriggers(); renderWaypoints(); wireCalib();
   const fl=$('failLeash'); fl.checked=S.fail.leash; fl.onchange=()=>{S.fail.leash=fl.checked;regen();};
   const fr=$('failRadius'); fr.value=S.fail.radius; fr.oninput=()=>{S.fail.radius=parseFloat(fr.value)||0;regen();};
   regen();
@@ -849,9 +1169,13 @@ function renderAll(){
 function load(text){
   $('err').textContent='';
   try{
-    const p=parseLua(text);
-    if(!p || (typeof p!=='object')) throw new Error('Could not parse a table.');
-    S=buildState(p);
+    if(/Contract\.Register/.test(text)){
+      S = fromContractLua(parseContractLua(text));   // re-import a generated / deployed contract to keep editing it
+    } else {
+      const p=parseLua(text);
+      if(!p || (typeof p!=='object')) throw new Error('Paste a MISSIONFORGE_EXPORT block, or a generated Contract.Register({ ... }) contract.');
+      S=buildState(p);
+    }
     $('loadInfo').textContent = (S.units.length)+' units · '+(S.objectives.length)+' objective block(s) · '+(S.spawns.length)+' spawn';
     renderAll();
   }catch(e){ $('err').textContent='Parse error: '+e.message; $('editorBody').hidden=true; $('code').textContent='Load an export to begin…'; }
@@ -868,20 +1192,37 @@ function addRelation(){ S.relations.push({a:'VZ',b:'PMC',set:'enemy'}); renderRe
 function addSupport(){ const a=anchorXYZ();
   S.support.push({ id:'sup'+(S.support.length+1), effect:'artillery', x:a.x,y:a.y,z:a.z, radius:15, owner:'',
     ammo:'Gunship Shell', count:5, vehicle:'Support Vehicle (Autogunship)', altitude:120, speed:55,
-    template:'AH1Z', heliCount:3, spawns:'', deliver:'spawn', faction:'', note:'',
+    template:'AH1Z', heliCount:3, stagger:0, spread:0, spawns:'', deliver:'spawn', faction:'', note:'', text:'', hold:5, cue:'', particle:'', pct:0, lines:'', kill:false, target:'',
     trigMode:'immediate', delay:3, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'' });
   renderSupport(); renderTriggers(); regen(); }
 function addTrigger(){ const a=anchorXYZ();
   S.triggers.push({ id:'trig'+(S.triggers.length+1), kind:'proximity', x:a.x,y:a.y,z:a.z, radius:15,
-    interval:10, limit:0, delay:3, target:'nearest', fires:[] });
-  renderTriggers(); regen(); }
+    interval:10, limit:0, delay:3, target:'nearest', pct:50, index:1, faction:'', inputs:[], need:1, fires:[] });
+  renderTriggers(); renderWaypoints(); regen(); }
 
 $('loadBtn').onclick=()=>load($('paste').value);
 $('sampleBtn').onclick=()=>{ $('paste').value=SAMPLE; load(SAMPLE); };
+$('convoyBtn').onclick=()=>{ $('paste').value=CONVOY_SAMPLE; load(CONVOY_SAMPLE); };
 $('addObj').onclick=addObjective;
 $('addRel').onclick=addRelation;
 $('addSup').onclick=addSupport;
 $('addTrig').onclick=addTrigger;
+$('addWp').onclick=addWaypoint;
+
+/* flow graph: an isolated overlay (flowgraph.js) that visually wires triggers -> support/orders.
+   It edits the SAME S fields, so we just re-render those sections + regen on any change. */
+if(window.FlowGraph){
+  FlowGraph.init({
+    state:()=>S,
+    onChange:()=>{ if(!S) return; renderSupport(); renderTriggers(); renderWaypoints(); regen(); },
+    create:{ trigger:()=>addTrigger(), support:()=>addSupport(), order:()=>addWaypoint(),   // reuse the form's node creators
+      gate:()=>{ addTrigger(); const t=S.triggers[S.triggers.length-1]; t.kind='all'; renderTriggers(); regen(); } },
+    locate:(kind,id)=>{ FlowGraph.close();
+      const c=document.querySelector('[data-nid="'+(window.CSS&&CSS.escape?CSS.escape(id):id)+'"]');
+      if(c){ c.scrollIntoView({block:'center',behavior:'smooth'}); c.classList.add('flash'); setTimeout(()=>c.classList.remove('flash'),1500); } }
+  });
+  $('flowBtn').onclick=()=>{ if(!S){ toast('Load or build a mission first'); return; } FlowGraph.open(); };
+}
 
 /* initial map-pane state before any load (placeholder + wire the calibration inputs) */
 renderMap(); wireCalib();
@@ -926,6 +1267,73 @@ const SAMPLE = `MISSIONFORGE_EXPORT = {
     { type="checkpoint", x=2678.73, y=-29.19, z=485.13, radius=15.0, yaw=0.175, group="A" },
     { type="checkpoint", x=2673.28, y=-33.97, z=545.14, radius=15.0, yaw=0.394, group="A" },
     { type="extract", x=2673.43, y=-33.81, z=617.33, radius=15.0, yaw=-0.745, group="A" },
+  },
+  support = {
+    -- each fires from the trigger sharing its group. DANGEROUS effects (artillery/flyby) land 100+ units
+    -- to the SIDE of the course so they read as cinematic backdrop, never on the racing line.
+    { effect="heli",      x=3005.01, y=-27.06, z=-1167.65, radius=12.0, group="sg1" },  -- heli wave, east flank
+    { effect="artillery", x=3040.62, y=-29.97, z=-790.23,  radius=14.0, group="sg2" },  -- barrage, far east
+    { effect="flyby",     x=3070.57, y=-29.01, z=-505.72,  radius=10.0, group="sg3" },  -- gunship strafe, far east
+    { effect="heli",      x=2585.99, y=-32.19, z=-115.17,  radius=12.0, group="sg4" },  -- heli wave, west flank
+    { effect="artillery", x=2452.58, y=-12.33, z=256.37,   radius=14.0, group="sg5" },  -- barrage, far west
+  },
+  triggers = {
+    -- proximity rings ON the course (at checkpoints 3/8/11/15/20) that set off the offset supports above
+    { x=2905.01, y=-27.06, z=-1167.65, radius=22.0, group="sg1" },
+    { x=2937.62, y=-29.97, z=-790.23,  radius=22.0, group="sg2" },
+    { x=2963.57, y=-29.01, z=-505.72,  radius=22.0, group="sg3" },
+    { x=2691.99, y=-32.19, z=-115.17,  radius=22.0, group="sg4" },
+    { x=2562.58, y=-12.33, z=256.37,   radius=22.0, group="sg5" },
+  },
+}`;
+
+/* ---------- sample: convoy protection (a broad showcase, reusing the race road points) ----------
+   Flow: spawn beside an empty allied Humvee -> REACH it (board) -> that trips the "board" trigger which
+   sends the allied convoy rolling up the road (MOVE order) -> you escort them to the ridge (REACH) which
+   trips the "amb" trigger: enemy artillery walks onto the lead, an allied gunship makes a pass, and the
+   convoy digs in (HOLD order) -> the VZ ambush spawns (DESTROY objective) and pushes down onto the convoy
+   -> wipe them out to win. Uses: start, units (allied + enemy), 3 objective types, 2 trigger-gated AI
+   orders on one group, 2 support call-ins, 2 triggers, faction relations, reward + fanfare.
+   Heights are rough road-point Ys — fine-tune spawn heights in-game. */
+const CONVOY_SAMPLE = `MISSIONFORGE_EXPORT = {
+  name = "convoy_demo",
+  meta = { title="Convoy Protection", briefing="Board the escort Humvee, move the allied convoy up the coast road, then hold off the ambush.", cash=75000, fuel=60, fanfareType="hvtkill" },
+  anchor = { x=2850.0, y=-30.0, z=-900.0 },
+  relations = {
+    { "Allied", "PMC", "friend" },   -- your convoy won't fire on you
+    { "VZ", "PMC", "enemy" },         -- the ambush is hostile to you...
+    { "VZ", "Allied", "enemy" },      -- ...and to the convoy
+  },
+  spawns = {
+    { x=2651.78, y=-13.72, z=-1014.94, yaw=146.033 },
+  },
+  units = {
+    { faction="ALLIED", kind="vehicle", spawn="HMMWV (Softtop)",                 x=2660.0,  y=-13.50, z=-1024.0,  yaw=140.0, group="ride" },
+    { faction="ALLIED", kind="vehicle", spawn="HMMWV (Armored) (50Cal) (Full)",  x=2933.77, y=-34.78, z=-1025.12, yaw=7.0,   group="convoy" },
+    { faction="ALLIED", kind="vehicle", spawn="LAVIII (25mm) (Full)",            x=2927.34, y=-35.35, z=-943.48,  yaw=-5.0,  group="convoy" },
+    { faction="ALLIED", kind="vehicle", spawn="HMMWV (Armored) (TOW) (Full)",    x=2937.54, y=-33.06, z=-863.70,  yaw=4.0,   group="convoy" },
+    { faction="VZ", kind="vehicle",  spawn="M151 .50Cal (VZ) (Full)", x=2945.57, y=-28.55, z=-695.87, yaw=180.0, group="ambush" },
+    { faction="VZ", kind="infantry", spawn="VZ Heavy (RPG)",          x=2951.0,  y=-28.50, z=-690.0,  yaw=180.0, group="ambush" },
+    { faction="VZ", kind="infantry", spawn="VZ Heavy (Light MG)",     x=2956.74, y=-28.47, z=-593.04, yaw=180.0, group="ambush" },
+    { faction="VZ", kind="infantry", spawn="VZ Soldier",              x=2950.0,  y=-28.50, z=-600.0,  yaw=180.0, group="ambush" },
+    { faction="VZ", kind="infantry", spawn="VZ Sniper",               x=2960.0,  y=-28.50, z=-650.0,  yaw=180.0, group="ambush" },
+  },
+  objectives = {
+    { type="reach",   x=2660.0,  y=-13.50, z=-1024.0,  radius=5.0,  group="A", desc="Board the escort Humvee" },
+    { type="reach",   x=2937.62, y=-29.97, z=-790.23,  radius=22.0, group="A", desc="Escort the convoy up to the ridge" },
+    { type="destroy", x=2950.0,  y=-28.50, z=-645.0,   radius=70.0, group="ambush", desc="Wipe out the VZ ambush" },
+  },
+  support = {
+    { effect="artillery", x=2945.57, y=-28.55, z=-695.87, radius=8.0,  group="amb" },  -- enemy shells walk onto the lead (well ahead of you)
+    { effect="heli",      x=2956.74, y=-28.47, z=-593.04, radius=12.0, group="amb" },  -- allied gunship makes a supporting pass
+  },
+  triggers = {
+    { x=2660.0,  y=-13.50, z=-1024.0, radius=6.0,  group="board" },  -- you board -> convoy rolls out
+    { x=2937.62, y=-29.97, z=-790.23, radius=25.0, group="amb" },    -- convoy hits the ridge -> ambush springs
+  },
+  orders = {
+    { behavior="move", x=2956.74, y=-28.47, z=-593.04, group="convoy", trig="board" },  -- roll up the road when you board
+    { behavior="hold", x=2945.57, y=-28.55, z=-695.87, group="convoy", trig="amb" },     -- dig in and hold when ambushed
   },
 }`;
 </script>
