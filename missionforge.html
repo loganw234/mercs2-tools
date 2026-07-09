@@ -199,6 +199,8 @@
           <div class="f"><label>right edge X</label><input type="number" id="cal_rx"></div>
           <div class="f"><label>top edge Z</label><input type="number" id="cal_tz"></div>
           <div class="f"><label>bottom edge Z</label><input type="number" id="cal_bz"></div>
+          <div class="f"><label>nudge X (px)</label><input type="number" id="cal_ox"></div>
+          <div class="f"><label>nudge Z (px)</label><input type="number" id="cal_oz"></div>
           <label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cal_on" style="width:auto"> calibrated</label>
         </div>
       </details>
@@ -295,7 +297,7 @@ const FAC_MAP_RGB = { GUERILLA:'#50dc50', ALLIED:'#50a0ff', CHINA:'#ff5050', 'OC
 // Map view. CONFIRMED pixel-perfect: world 0,0 = image centre; the map is 8204x8204 = +/-4102 world
 // units each way, so 1 world unit == 1 image pixel (no scaling). SVG space = world space with sy = -z
 // (north/Z+ up), so zoom is just viewBox math. Flip flipImg if the overlay comes out upside-down.
-const MAP = { image:'map.jpg', calibrated:true, leftX:4102, rightX:-4102, topZ:4102, botZ:-4102, vb:null };
+const MAP = { image:'map.jpg', calibrated:true, leftX:4102, rightX:-4102, topZ:4102, botZ:-4102, offX:-50, offZ:-50, vb:null };
 
 let S = null; // state
 
@@ -655,7 +657,7 @@ function mapSpan(){ return { w:Math.abs(MAP.rightX-MAP.leftX)||1, h:Math.abs(MAP
 // leftX = world X at the image's LEFT edge, topZ = world Z at the TOP edge. (Game X runs west-positive,
 // so leftX=+4102/rightX=-4102; Z is north-up so topZ=+4102/botZ=-4102.)
 function wToS(x,z){ const sp=mapSpan();
-  return { x:(x-MAP.leftX)/(MAP.rightX-MAP.leftX)*sp.w, y:(z-MAP.topZ)/(MAP.botZ-MAP.topZ)*sp.h }; }
+  return { x:(x-MAP.leftX)/(MAP.rightX-MAP.leftX)*sp.w + (MAP.offX||0), y:(z-MAP.topZ)/(MAP.botZ-MAP.topZ)*sp.h + (MAP.offZ||0) }; }
 function fullMapVB(){ const sp=mapSpan(); return { x:0, y:0, w:sp.w, h:sp.h }; }
 function mapViewBox(){
   if(MAP.vb) return MAP.vb;
@@ -707,6 +709,7 @@ function wireMapInteraction(){
 function wireCalib(){
   const b=(id,key)=>{ const e=$(id); if(!e)return; e.value=MAP[key]; e.oninput=()=>{MAP[key]=parseFloat(e.value)||0; MAP.vb=null; renderMap();}; };
   b('cal_lx','leftX'); b('cal_rx','rightX'); b('cal_tz','topZ'); b('cal_bz','botZ');
+  b('cal_ox','offX'); b('cal_oz','offZ');
   const on=$('cal_on'); if(on){ on.checked=MAP.calibrated; on.onchange=()=>{MAP.calibrated=on.checked; MAP.vb=null; renderMap();}; }
 }
 
