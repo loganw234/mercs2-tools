@@ -140,6 +140,46 @@
         <p class="note" id="unitsNote"></p>
         <div id="unitList"></div>
       </section>
+
+      <section class="card">
+        <h2>6 · Relations (faction stances)</h2>
+        <div id="relList"></div>
+        <div class="row" style="margin-top:6px"><button class="mini" id="addRel">+ add relation</button>
+          <span class="hint">friend / neutral / enemy between factions (incl. <b>PMC</b> = the player). Recorded &amp; restored on finish.</span></div>
+      </section>
+
+      <section class="card">
+        <h2>7 · Support call-ins</h2>
+        <div id="supList"></div>
+        <div class="row" style="margin-top:6px"><button class="mini" id="addSup">+ add support</button>
+          <span class="hint">artillery / airstrike flyby / heli wave / reinforcements — each fired by its own trigger.</span></div>
+      </section>
+
+      <section class="card">
+        <h2>8 · Triggers (generic)</h2>
+        <div id="trigList"></div>
+        <div class="row" style="margin-top:6px"><button class="mini" id="addTrig">+ add trigger</button>
+          <span class="hint">a named trigger fires one or more support events (e.g. cross a line → airstrike elsewhere).</span></div>
+      </section>
+
+      <section class="card">
+        <h2>9 · Map (layout preview)</h2>
+        <div id="mapBox"></div>
+        <details style="margin-top:10px">
+          <summary class="hint" style="cursor:pointer">Map image + calibration</summary>
+          <p class="note"><b>Calibrated (exact):</b> 0,0 = map centre, 8204×8204 = ±4102 world/pixels. Game X runs
+            west-positive, so the <b>left edge = +4102</b>; Z is north-up (top = +4102). Image is
+            <code class="k">tools/missionforge/map.jpg</code>. Scroll = zoom, drag = pan, ⤢ fit / 🗺 full map.
+            Each field is the world coord at that edge — swap two to flip an axis if a re-extracted map is oriented differently.</p>
+          <div class="row" style="margin-top:8px">
+            <div class="f"><label>left edge X</label><input type="number" id="cal_lx"></div>
+            <div class="f"><label>right edge X</label><input type="number" id="cal_rx"></div>
+            <div class="f"><label>top edge Z</label><input type="number" id="cal_tz"></div>
+            <div class="f"><label>bottom edge Z</label><input type="number" id="cal_bz"></div>
+            <label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cal_on" style="width:auto"> calibrated</label>
+          </div>
+        </details>
+      </section>
     </div>
   </div>
 
@@ -231,6 +271,19 @@ const DEFAULT_DESC = { destroy:'Eliminate the targets', reach:'Reach the locatio
   enter:'Get in the vehicle', interact:'Interact with the objective', verify:'Neutralise the HVT',
   extract:'Reach extraction', race:'Hit all the checkpoints' };
 
+const FACTIONS = ['Allied','China','Guerilla','OC','Pirate','VZ','PMC'];   // Pg.GetGuidByName names (framework side)
+const SUPPORT_EFFECTS = ['artillery','flyby','heli','reinforce','custom'];
+const SUPPORT_FIELDS = { artillery:['ammo','count'], flyby:['vehicle','altitude','speed'],
+  heli:['template','heliCount'], reinforce:['spawns','deliver','faction'], custom:['note'] };
+const TRIG_KINDS = ['proximity','recurring','once','onDestroy'];
+const FAC_MAP_RGB = { GUERILLA:'#50dc50', ALLIED:'#50a0ff', CHINA:'#ff5050', 'OC (OIL)':'#ffb428',
+  PIRATE:'#c878ff', VZ:'#ebebeb', PROP:'#c8c8c8' };
+
+// Map view. CONFIRMED pixel-perfect: world 0,0 = image centre; the map is 8204x8204 = +/-4102 world
+// units each way, so 1 world unit == 1 image pixel (no scaling). SVG space = world space with sy = -z
+// (north/Z+ up), so zoom is just viewBox math. Flip flipImg if the overlay comes out upside-down.
+const MAP = { image:'map.jpg', calibrated:true, leftX:4102, rightX:-4102, topZ:4102, botZ:-4102, vb:null };
+
 let S = null; // state
 
 function sanitizeId(s){ return String(s||'forge_mission').toLowerCase().replace(/[^a-z0-9_]+/g,'_').replace(/^_+|_+$/g,'') || 'forge_mission'; }
@@ -260,8 +313,13 @@ function buildState(p){
         quota:0, target:'', seat:'', group:grp, targetGroup:grp, optional:false, bonus:0, checkpoints:null });
     }
   }
-  return { meta, spawns, units, objectives, start:{ mode: spawns.length?'all':'none' },
-           fail:{ leash:false, radius:250 }, anchor:p.anchor||null };
+  const support = (p.support||[]).map((v,i)=>({ id:'sup'+(i+1), effect:v.effect||'artillery', x:+v.x,y:+v.y,z:+v.z, radius:+(v.radius||15),
+    owner:'', ammo:'Gunship Shell', count:5, vehicle:'Support Vehicle (Autogunship)', altitude:120, speed:55, template:'AH1Z', heliCount:3,
+    spawns:'', deliver:'spawn', faction:'', note:'', trigMode:'immediate', delay:3, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'' }));
+  const triggers = (p.triggers||[]).map((t,i)=>({ id:'trig'+(i+1), kind:'proximity', x:+t.x,y:+t.y,z:+t.z, radius:+(t.radius||15),
+    interval:10, limit:0, delay:3, target:'nearest', fires:[] }));
+  return { meta, spawns, units, objectives, relations:[], support, triggers,
+           start:{ mode: spawns.length?'all':'none' }, fail:{ leash:false, radius:250 }, anchor:p.anchor||null };
 }
 
 function groupsAvailable(){
@@ -399,12 +457,244 @@ function genLua(){
     if(m.fanfare) L.push('    fanfare     = '+q(m.fanfare)+',');
     if(m.fanfareType && m.fanfareType!=='highscore') L.push('    fanfareType = '+q(m.fanfareType)+',');
   }
+  if(S.relations && S.relations.length){
+    L.push('');
+    L.push('    relations = {');
+    S.relations.forEach(r=> L.push('        { '+q(r.a)+', '+q(r.b)+', '+q(r.set)+' },'));
+    L.push('    },');
+  }
+  if(S.support && S.support.length){
+    L.push('');
+    L.push('    support = {');
+    S.support.forEach(v=> L.push('        '+genSupport(v)));
+    L.push('    },');
+  }
+  if(S.triggers && S.triggers.length){
+    L.push('');
+    L.push('    triggers = {');
+    S.triggers.forEach(t=> L.push('        '+genTrigger(t)));
+    L.push('    },');
+  }
   L.push('})');
   return L.join('\n');
 }
+function genTrig(o){   // a support's inline trigger
+  switch(o.trigMode){
+    case 'once':      return 'trigger = { once = '+nm(o.delay||3)+' }';
+    case 'recurring': return 'trigger = { recurring = '+nm(o.interval||10)+(o.limit? (', limit = '+o.limit):'')+' }';
+    case 'proximity': return 'trigger = { proximity = '+nm(o.proxRadius||o.radius||20)+' }';
+    case 'onDestroy': return 'trigger = { onDestroy = '+q(o.onDestroy||'nearest')+' }';
+    case 'ref':       return 'trigger = { ref = '+q(o.ref||'')+' }';
+    default:          return 'trigger = "immediate"';
+  }
+}
+function genSupport(v){
+  const f=['id = '+q(v.id), 'effect = '+q(v.effect), 'at = { '+nm(v.x)+', '+nm(v.y)+', '+nm(v.z)+' }', 'radius = '+nm(v.radius)];
+  if(v.owner) f.push('owner = '+q(v.owner));
+  if(v.effect==='artillery'){ if(v.ammo) f.push('ammo = '+q(v.ammo)); if(v.count) f.push('count = '+v.count); }
+  else if(v.effect==='flyby'){ if(v.vehicle) f.push('vehicle = '+q(v.vehicle)); if(v.altitude) f.push('altitude = '+nm(v.altitude)); if(v.speed) f.push('speed = '+nm(v.speed)); }
+  else if(v.effect==='heli'){ if(v.template) f.push('template = '+q(v.template)); if(v.heliCount) f.push('count = '+v.heliCount); }
+  else if(v.effect==='reinforce'){ const sp=(v.spawns||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if(sp.length) f.push('spawns = { '+sp.map(q).join(', ')+' }');
+    if(v.deliver==='copter'){ f.push('deliver = "copter"'); if(v.faction) f.push('faction = '+q(v.faction)); } }
+  else if(v.effect==='custom'){ f.push('fn = function(ev, task) --[[ '+String(v.note||'custom effect').replace(/\]/g,'')+' ]] end'); }
+  f.push(genTrig(v));
+  return '{ '+f.join(', ')+' },';
+}
+function genTrigger(t){
+  const f=['id = '+q(t.id), 'kind = '+q(t.kind)];
+  if(t.kind==='proximity'||t.kind==='onDestroy'){ f.push('at = { '+nm(t.x)+', '+nm(t.y)+', '+nm(t.z)+' }', 'radius = '+nm(t.radius)); }
+  if(t.kind==='recurring'){ f.push('interval = '+nm(t.interval||10)); if(t.limit) f.push('limit = '+t.limit); }
+  if(t.kind==='once') f.push('delay = '+nm(t.delay||3));
+  if(t.kind==='onDestroy') f.push('target = '+q(t.target||'nearest'));
+  const fires=(t.fires||[]).filter(Boolean);
+  if(fires.length) f.push('fires = { '+fires.map(q).join(', ')+' }');
+  return '{ '+f.join(', ')+' },';
+}
 
 /* ---------- rendering ---------- */
-function regen(){ $('code').textContent = genLua(); }
+function regen(){ $('code').textContent = genLua(); renderMap(); }
+
+/* ---- shared little field helpers used by the new sections ---- */
+function xyzField(o){ return el('div',{class:'f'},[el('label',{},['x / y / z']),
+  el('div',{style:'display:flex;gap:4px'},['x','y','z'].map(ax=>{ const inp=el('input',{type:'number',value:o[ax]}); inp.step='any'; inp.style.width='72px';
+    inp.addEventListener('input',()=>{o[ax]=parseFloat(inp.value)||0;regen();}); return inp; }))]); }
+function facSelect(val, allowNone, onch){ const s=el('select',{}); if(allowNone) s.appendChild(el('option',{value:''},['(none)']));
+  FACTIONS.forEach(f=>s.appendChild(el('option',{value:f},[f]))); s.value=val||''; s.addEventListener('change',()=>onch(s.value)); return s; }
+function supportIds(){ return S.support.map(s=>s.id).filter(Boolean); }
+
+/* ---- 6 · relations ---- */
+function renderRelations(){
+  const box=$('relList'); box.innerHTML='';
+  S.relations.forEach((r,i)=>{
+    const row=el('div',{class:'row'});
+    row.appendChild(el('div',{class:'f'},[el('label',{},['faction']), facSelect(r.a,false,v=>{r.a=v;regen();})]));
+    row.appendChild(el('div',{class:'f'},[el('label',{},['↔']), facSelect(r.b,false,v=>{r.b=v;regen();})]));
+    const ss=el('select',{}); ['friend','neutral','enemy'].forEach(v=>ss.appendChild(el('option',{value:v},[v]))); ss.value=r.set;
+    ss.addEventListener('change',()=>{r.set=ss.value;regen();});
+    row.appendChild(el('div',{class:'f'},[el('label',{},['stance']),ss]));
+    row.appendChild(el('button',{class:'mini danger',onclick:()=>{S.relations.splice(i,1);renderRelations();regen();}},['✕']));
+    box.appendChild(row);
+  });
+}
+
+/* ---- 7 · support ---- */
+function supField(o,fn){
+  switch(fn){
+    case 'ammo': return textField(o,'ammo','ammo template',150);
+    case 'count': return numField(o,'count','shells');
+    case 'vehicle': return textField(o,'vehicle','support vehicle',210);
+    case 'altitude': return numField(o,'altitude','altitude');
+    case 'speed': return numField(o,'speed','speed');
+    case 'template': return textField(o,'template','heli template',150);
+    case 'heliCount': return numField(o,'heliCount','# helis');
+    case 'spawns': return textField(o,'spawns','spawn templates (comma-separated)',320);
+    case 'deliver': { const s=el('select',{}); [['spawn','direct spawn'],['copter','copter drop']].forEach(([v,t])=>s.appendChild(el('option',{value:v},[t])));
+      s.value=o.deliver||'spawn'; s.addEventListener('change',()=>{o.deliver=s.value;renderSupport();regen();}); return el('div',{class:'f'},[el('label',{},['deliver']),s]); }
+    case 'faction': return el('div',{class:'f'},[el('label',{},['copter faction']), facSelect(o.faction,true,v=>{o.faction=v;regen();})]);
+    case 'note': return textField(o,'note','note (for the custom fn stub)',260);
+  }
+  return document.createTextNode('');
+}
+function triggerEditor(o){
+  const wrap=el('div',{class:'row',style:'border-top:1px solid var(--line);padding-top:8px;margin-top:2px'});
+  const mode=el('select',{});
+  [['immediate','immediate'],['once','once (after delay)'],['recurring','recurring'],['proximity','player proximity'],['onDestroy','on target destroyed'],['ref','when a trigger fires']]
+    .forEach(([v,t])=>mode.appendChild(el('option',{value:v},[t])));
+  mode.value=o.trigMode||'immediate'; mode.addEventListener('change',()=>{o.trigMode=mode.value;renderSupport();regen();});
+  wrap.appendChild(el('div',{class:'f'},[el('label',{},['trigger']),mode]));
+  if(o.trigMode==='once') wrap.appendChild(numField(o,'delay','delay (s)'));
+  else if(o.trigMode==='recurring'){ wrap.appendChild(numField(o,'interval','interval (s)')); wrap.appendChild(numField(o,'limit','limit (0=∞)')); }
+  else if(o.trigMode==='proximity') wrap.appendChild(numField(o,'proxRadius','trigger radius'));
+  else if(o.trigMode==='onDestroy') wrap.appendChild(textField(o,'onDestroy','target ("nearest" or a name)',200));
+  else if(o.trigMode==='ref'){ const s=el('select',{}); s.appendChild(el('option',{value:''},['(pick a trigger)']));
+    S.triggers.forEach(t=>{ if(t.id) s.appendChild(el('option',{value:t.id},[t.id])); }); s.value=o.ref||'';
+    s.addEventListener('change',()=>{o.ref=s.value;regen();}); wrap.appendChild(el('div',{class:'f'},[el('label',{},['trigger id']),s])); }
+  return wrap;
+}
+function renderSupport(){
+  const box=$('supList'); box.innerHTML='';
+  S.support.forEach((v,i)=>{
+    const card=el('div',{class:'obj'});
+    const idIn=el('input',{value:v.id}); idIn.style.width='110px'; idIn.addEventListener('input',()=>{v.id=idIn.value;regen();});
+    const eff=el('select',{}); SUPPORT_EFFECTS.forEach(e=>eff.appendChild(el('option',{value:e},[e]))); eff.value=v.effect;
+    eff.addEventListener('change',()=>{v.effect=eff.value;renderSupport();regen();});
+    card.appendChild(el('div',{class:'hd'},[el('span',{class:'idx'},['id']),idIn,eff,
+      el('div',{class:'sp'},[el('button',{class:'mini danger',onclick:()=>{S.support.splice(i,1);renderSupport();renderTriggers();regen();}},['✕'])])]));
+    const r1=el('div',{class:'row'});
+    r1.appendChild(xyzField(v));
+    r1.appendChild(numField(v,'radius','radius'));
+    r1.appendChild(el('div',{class:'f'},[el('label',{},['owner']), facSelect(v.owner,true,val=>{v.owner=val;regen();})]));
+    r1.appendChild(el('button',{class:'mini',onclick:()=>{ if(S.anchor){v.x=+S.anchor.x;v.y=+S.anchor.y;v.z=+S.anchor.z;renderSupport();regen();} }},['⌖ anchor']));
+    card.appendChild(r1);
+    const r2=el('div',{class:'row'});
+    (SUPPORT_FIELDS[v.effect]||[]).forEach(fn=> r2.appendChild(supField(v,fn)));
+    if(r2.children.length) card.appendChild(r2);
+    card.appendChild(triggerEditor(v));
+    box.appendChild(card);
+  });
+}
+
+/* ---- 8 · triggers ---- */
+function renderTriggers(){
+  const box=$('trigList'); box.innerHTML='';
+  S.triggers.forEach((t,i)=>{
+    const card=el('div',{class:'obj'});
+    const idIn=el('input',{value:t.id}); idIn.style.width='110px'; idIn.addEventListener('input',()=>{t.id=idIn.value;renderSupport();regen();});
+    const kind=el('select',{}); TRIG_KINDS.forEach(k=>kind.appendChild(el('option',{value:k},[k]))); kind.value=t.kind;
+    kind.addEventListener('change',()=>{t.kind=kind.value;renderTriggers();regen();});
+    card.appendChild(el('div',{class:'hd'},[el('span',{class:'idx'},['id']),idIn,kind,
+      el('div',{class:'sp'},[el('button',{class:'mini danger',onclick:()=>{S.triggers.splice(i,1);renderTriggers();renderSupport();regen();}},['✕'])])]));
+    const r1=el('div',{class:'row'});
+    if(t.kind==='proximity'||t.kind==='onDestroy'){ r1.appendChild(xyzField(t)); r1.appendChild(numField(t,'radius','radius')); }
+    if(t.kind==='recurring'){ r1.appendChild(numField(t,'interval','interval (s)')); r1.appendChild(numField(t,'limit','limit (0=∞)')); }
+    if(t.kind==='once') r1.appendChild(numField(t,'delay','delay (s)'));
+    if(t.kind==='onDestroy') r1.appendChild(textField(t,'target','target ("nearest"/name)',180));
+    if(r1.children.length) card.appendChild(r1);
+    const fr=el('div',{class:'row'});
+    const chips=el('div',{style:'display:flex;gap:10px;flex-wrap:wrap'});
+    const ids=supportIds();
+    if(!ids.length) chips.appendChild(el('span',{class:'hint'},['(add support events first)']));
+    ids.forEach(sid=>{ const lb=el('label',{class:'hint',style:'display:flex;gap:4px;align-items:center'});
+      const cb=el('input',{type:'checkbox',style:'width:auto'}); cb.checked=(t.fires||[]).indexOf(sid)>=0;
+      cb.addEventListener('change',()=>{ t.fires=t.fires||[]; if(cb.checked){ if(t.fires.indexOf(sid)<0)t.fires.push(sid);} else t.fires=t.fires.filter(x=>x!==sid); regen(); });
+      lb.appendChild(cb); lb.appendChild(document.createTextNode(sid)); chips.appendChild(lb); });
+    fr.appendChild(el('div',{class:'f'},[el('label',{},['fires supports']),chips]));
+    card.appendChild(fr);
+    box.appendChild(card);
+  });
+}
+
+/* ---- 9 · map preview (auto-fits now; overlays map.png once calibrated) ---- */
+function collectMapPoints(){
+  const pts=[];
+  S.units.forEach(u=> pts.push({x:u.x,z:u.z,c:FAC_MAP_RGB[u.faction]||'#c8c8c8',t:u.spawn||'unit'}));
+  S.objectives.forEach(o=>{ if(o.checkpoints){ o.checkpoints.forEach((c,i)=>pts.push({x:c.x,z:c.z,c:'#e0a24a',t:'cp'+(i+1)})); }
+    else pts.push({x:o.x,z:o.z,c:'#e0a24a',t:o.builder,ring:o.radius}); });
+  S.spawns.forEach((s,i)=> pts.push({x:s.x,z:s.z,c:'#16b3a3',t:'spawn'+(i+1)}));
+  S.support.forEach(v=> pts.push({x:v.x,z:v.z,c:'#ff8c3a',t:v.effect,ring:v.radius}));
+  S.triggers.forEach(t=> pts.push({x:t.x,z:t.z,c:'#c878ff',t:'trig '+(t.id||''),ring:t.radius}));
+  return pts;
+}
+function vbStr(v){ return v.x.toFixed(1)+' '+v.y.toFixed(1)+' '+v.w.toFixed(1)+' '+v.h.toFixed(1); }
+function mapSpan(){ return { w:Math.abs(MAP.rightX-MAP.leftX)||1, h:Math.abs(MAP.botZ-MAP.topZ)||1 }; }
+// world -> SVG (image occupies 0,0 .. span). Edge-driven, so leftX/rightX/topZ/botZ set the orientation:
+// leftX = world X at the image's LEFT edge, topZ = world Z at the TOP edge. (Game X runs west-positive,
+// so leftX=+4102/rightX=-4102; Z is north-up so topZ=+4102/botZ=-4102.)
+function wToS(x,z){ const sp=mapSpan();
+  return { x:(x-MAP.leftX)/(MAP.rightX-MAP.leftX)*sp.w, y:(z-MAP.topZ)/(MAP.botZ-MAP.topZ)*sp.h }; }
+function fullMapVB(){ const sp=mapSpan(); return { x:0, y:0, w:sp.w, h:sp.h }; }
+function mapViewBox(){
+  if(MAP.vb) return MAP.vb;
+  const pts=collectMapPoints();
+  if(pts.length){
+    const ss=pts.map(p=>wToS(p.x,p.z));
+    let minX=Math.min(...ss.map(s=>s.x)), maxX=Math.max(...ss.map(s=>s.x));
+    let minY=Math.min(...ss.map(s=>s.y)), maxY=Math.max(...ss.map(s=>s.y));
+    const mx=(maxX-minX)*0.15+40, my=(maxY-minY)*0.15+40;
+    return { x:minX-mx, y:minY-my, w:Math.max(1,(maxX-minX)+2*mx), h:Math.max(1,(maxY-minY)+2*my) };
+  }
+  return MAP.calibrated ? fullMapVB() : null;
+}
+function renderMap(){
+  const box=$('mapBox'); if(!box) return;
+  const pts=collectMapPoints();
+  const vb=mapViewBox();
+  if(!vb){ box.innerHTML='<p class="hint">Place items to see the top-down layout.</p>'; return; }
+  const sp=mapSpan(), dotR=Math.max(vb.w,vb.h)/90;
+  let s='<svg id="mapSvg" viewBox="'+vbStr(vb)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;max-height:460px;background:#0e0f0b;border:1px solid var(--line);border-radius:6px;cursor:move">';
+  if(MAP.calibrated) s+='<image href="'+MAP.image+'" x="0" y="0" width="'+sp.w+'" height="'+sp.h+'" preserveAspectRatio="none"/>';
+  pts.forEach(p=>{ if(p.ring){ const s0=wToS(p.x,p.z); s+='<circle cx="'+s0.x.toFixed(1)+'" cy="'+s0.y.toFixed(1)+'" r="'+p.ring+'" fill="none" stroke="'+p.c+'" stroke-width="'+(dotR*0.35).toFixed(2)+'" opacity="0.75"/>'; }});
+  pts.forEach(p=>{ const s0=wToS(p.x,p.z); s+='<circle cx="'+s0.x.toFixed(1)+'" cy="'+s0.y.toFixed(1)+'" r="'+dotR.toFixed(1)+'" fill="'+p.c+'" stroke="#0008" stroke-width="'+(dotR*0.15).toFixed(2)+'"><title>'+p.t+'  ('+Math.round(p.x)+', '+Math.round(p.z)+')</title></circle>'; });
+  s+='</svg>';
+  const legend='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--muted);align-items:center">'+
+    '<button class="mini" id="mapFit">⤢ fit</button><button class="mini" id="mapFull">🗺 full map</button>'+
+    '<span>● units</span><span style="color:#e0a24a">● obj</span><span style="color:#16b3a3">● spawn</span>'+
+    '<span style="color:#ff8c3a">● support</span><span style="color:#c878ff">● trigger</span>'+
+    '<span style="margin-left:auto">scroll = zoom · drag = pan</span></div>';
+  box.innerHTML=s+legend;
+  wireMapInteraction();
+  const fit=$('mapFit'); if(fit) fit.onclick=()=>{ MAP.vb=null; renderMap(); };
+  const full=$('mapFull'); if(full) full.onclick=()=>{ MAP.vb=fullMapVB(); renderMap(); };
+}
+function wireMapInteraction(){
+  const svg=document.getElementById('mapSvg'); if(!svg) return;
+  svg.onwheel=e=>{ e.preventDefault(); const vb=MAP.vb||mapViewBox(); const f=e.deltaY<0?0.82:1.22;
+    const rect=svg.getBoundingClientRect(); const rx=(e.clientX-rect.left)/rect.width, ry=(e.clientY-rect.top)/rect.height;
+    const cx=vb.x+vb.w*rx, cy=vb.y+vb.h*ry;
+    MAP.vb={ x:cx-vb.w*f*rx, y:cy-vb.h*f*ry, w:vb.w*f, h:vb.h*f }; renderMap(); };
+  svg.onmousedown=e=>{ e.preventDefault(); const vb=MAP.vb||mapViewBox(); const rect=svg.getBoundingClientRect();
+    const st={mx:e.clientX,my:e.clientY,vx:vb.x,vy:vb.y,vw:vb.w,vh:vb.h,rw:rect.width,rh:rect.height};
+    function mv(ev){ MAP.vb={ x:st.vx-(ev.clientX-st.mx)/st.rw*st.vw, y:st.vy-(ev.clientY-st.my)/st.rh*st.vh, w:st.vw, h:st.vh };
+      svg.setAttribute('viewBox', vbStr(MAP.vb)); }
+    function up(){ window.removeEventListener('mousemove',mv); window.removeEventListener('mouseup',up); }
+    window.addEventListener('mousemove',mv); window.addEventListener('mouseup',up); };
+}
+function wireCalib(){
+  const b=(id,key)=>{ const e=$(id); if(!e)return; e.value=MAP[key]; e.oninput=()=>{MAP[key]=parseFloat(e.value)||0; MAP.vb=null; renderMap();}; };
+  b('cal_lx','leftX'); b('cal_rx','rightX'); b('cal_tz','topZ'); b('cal_bz','botZ');
+  const on=$('cal_on'); if(on){ on.checked=MAP.calibrated; on.onchange=()=>{MAP.calibrated=on.checked; MAP.vb=null; renderMap();}; }
+}
 
 function bindVal(id, obj, key, isNum){
   const e=$(id); if(!e) return;
@@ -532,6 +822,7 @@ function renderUnits(){
 function renderAll(){
   $('editorBody').hidden=false;
   renderMeta(); renderStart(); renderObjectives(); renderUnits();
+  renderRelations(); renderSupport(); renderTriggers(); wireCalib();
   const fl=$('failLeash'); fl.checked=S.fail.leash; fl.onchange=()=>{S.fail.leash=fl.checked;regen();};
   const fr=$('failRadius'); fr.value=S.fail.radius; fr.oninput=()=>{S.fail.radius=parseFloat(fr.value)||0;regen();};
   regen();
@@ -555,10 +846,25 @@ function addObjective(){
   renderObjectives(); regen();
 }
 function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1400); }
+function anchorXYZ(){ return { x:S.anchor?+S.anchor.x:0, y:S.anchor?+S.anchor.y:0, z:S.anchor?+S.anchor.z:0 }; }
+function addRelation(){ S.relations.push({a:'VZ',b:'PMC',set:'enemy'}); renderRelations(); regen(); }
+function addSupport(){ const a=anchorXYZ();
+  S.support.push({ id:'sup'+(S.support.length+1), effect:'artillery', x:a.x,y:a.y,z:a.z, radius:15, owner:'',
+    ammo:'Gunship Shell', count:5, vehicle:'Support Vehicle (Autogunship)', altitude:120, speed:55,
+    template:'AH1Z', heliCount:3, spawns:'', deliver:'spawn', faction:'', note:'',
+    trigMode:'immediate', delay:3, interval:10, limit:0, proxRadius:20, onDestroy:'nearest', ref:'' });
+  renderSupport(); renderTriggers(); regen(); }
+function addTrigger(){ const a=anchorXYZ();
+  S.triggers.push({ id:'trig'+(S.triggers.length+1), kind:'proximity', x:a.x,y:a.y,z:a.z, radius:15,
+    interval:10, limit:0, delay:3, target:'nearest', fires:[] });
+  renderTriggers(); regen(); }
 
 $('loadBtn').onclick=()=>load($('paste').value);
 $('sampleBtn').onclick=()=>{ $('paste').value=SAMPLE; load(SAMPLE); };
 $('addObj').onclick=addObjective;
+$('addRel').onclick=addRelation;
+$('addSup').onclick=addSupport;
+$('addTrig').onclick=addTrigger;
 $('copyBtn').onclick=()=>{ navigator.clipboard.writeText($('code').textContent).then(()=>toast('Copied')); };
 $('dlBtn').onclick=()=>{ const blob=new Blob([$('code').textContent],{type:'text/plain'});
   const a=el('a',{href:URL.createObjectURL(blob),download:(S?S.meta.id:'contract')+'.lua'}); document.body.appendChild(a); a.click(); a.remove(); };
