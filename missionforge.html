@@ -12,19 +12,30 @@
     --sans:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;height:100vh;display:flex;flex-direction:column;overflow:hidden}
   a{color:var(--accent2)}
-  header{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header{flex:none;padding:14px 22px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
   header h1{font-size:17px;margin:0;font-weight:600}
   header .sub{color:var(--muted);font-size:12.5px}
-  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start}
-  @media(max-width:940px){.wrap{grid-template-columns:1fr}}
-  .editor{padding:18px 22px;min-width:0}
-  .out{position:sticky;top:0;height:100vh;border-left:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel)}
-  @media(max-width:940px){.out{position:static;height:auto}}
-  .out-head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
-  .out-head .title{font-weight:600;margin-right:auto}
-  pre#code{margin:0;padding:16px;overflow:auto;flex:1;font-family:var(--mono);font-size:12.5px;line-height:1.55;white-space:pre;color:#dfe7d8}
+  .wrap{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1fr}
+  .editor{padding:18px 22px;min-width:0;overflow-y:auto}
+  .right{display:flex;flex-direction:column;min-height:0;min-width:0;border-left:1px solid var(--line);background:var(--panel)}
+  .out{flex:1 1 55%;min-height:0;display:flex;flex-direction:column}
+  .mappane{flex:1 1 45%;min-height:0;display:flex;flex-direction:column;border-top:1px solid var(--line);padding:12px 16px}
+  .mappane #mapBox{flex:1 1 auto;min-height:140px;display:flex;flex-direction:column}
+  .mappane #mapBox>svg{flex:1 1 auto;min-height:0}
+  .mappane details{flex:none;margin-top:8px}
+  .out-head{flex:none;padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+  .out-head .title,.map-head .title{font-weight:600;margin-right:auto}
+  .map-head{display:flex;gap:8px;align-items:center;padding:0 0 8px;font-size:13px}
+  pre#code{margin:0;padding:16px;overflow:auto;flex:1;min-height:0;font-family:var(--mono);font-size:12.5px;line-height:1.55;white-space:pre;color:#dfe7d8}
+  @media(max-width:940px){
+    body{height:auto;overflow:auto;display:block}
+    .wrap{display:block}
+    .right{border-left:none}
+    .out{height:65vh}
+    .mappane{max-height:none}
+  }
   section.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 14px}
   section.card > h2{font-size:13px;margin:0 0 12px;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px}
@@ -162,34 +173,36 @@
           <span class="hint">a named trigger fires one or more support events (e.g. cross a line → airstrike elsewhere).</span></div>
       </section>
 
-      <section class="card">
-        <h2>9 · Map (layout preview)</h2>
-        <div id="mapBox"></div>
-        <details style="margin-top:10px">
-          <summary class="hint" style="cursor:pointer">Map image + calibration</summary>
-          <p class="note"><b>Calibrated (exact):</b> 0,0 = map centre, 8204×8204 = ±4102 world/pixels. Game X runs
-            west-positive, so the <b>left edge = +4102</b>; Z is north-up (top = +4102). Image is
-            <code class="k">tools/missionforge/map.jpg</code>. Scroll = zoom, drag = pan, ⤢ fit / 🗺 full map.
-            Each field is the world coord at that edge — swap two to flip an axis if a re-extracted map is oriented differently.</p>
-          <div class="row" style="margin-top:8px">
-            <div class="f"><label>left edge X</label><input type="number" id="cal_lx"></div>
-            <div class="f"><label>right edge X</label><input type="number" id="cal_rx"></div>
-            <div class="f"><label>top edge Z</label><input type="number" id="cal_tz"></div>
-            <div class="f"><label>bottom edge Z</label><input type="number" id="cal_bz"></div>
-            <label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cal_on" style="width:auto"> calibrated</label>
-          </div>
-        </details>
-      </section>
     </div>
   </div>
 
-  <div class="out">
-    <div class="out-head">
-      <span class="title">Contract.Register</span>
-      <button class="mini" id="copyBtn">Copy</button>
-      <button class="mini" id="dlBtn">Download .lua</button>
+  <div class="right">
+    <div class="out">
+      <div class="out-head">
+        <span class="title">Contract.Register</span>
+        <button class="mini" id="copyBtn">Copy</button>
+        <button class="mini" id="dlBtn">Download .lua</button>
+      </div>
+      <pre id="code">Load an export to begin…</pre>
     </div>
-    <pre id="code">Load an export to begin…</pre>
+    <div class="mappane">
+      <div class="map-head"><span class="title">Map</span><span class="hint" style="margin-left:auto">scroll = zoom · drag = pan</span></div>
+      <div id="mapBox"></div>
+      <details style="margin-top:8px">
+        <summary class="hint" style="cursor:pointer">Map image + calibration</summary>
+        <p class="note"><b>Calibrated (exact):</b> 0,0 = map centre, 8204×8204 = ±4102 world/pixels. Game X runs
+          west-positive, so the <b>left edge = +4102</b>; Z is north-up (top = +4102). Image is
+          <code class="k">tools/missionforge/map.jpg</code>. Scroll = zoom, drag = pan, ⤢ fit / 🗺 full map.
+          Each field is the world coord at that edge — swap two to flip an axis if a re-extracted map is oriented differently.</p>
+        <div class="row" style="margin-top:8px">
+          <div class="f"><label>left edge X</label><input type="number" id="cal_lx"></div>
+          <div class="f"><label>right edge X</label><input type="number" id="cal_rx"></div>
+          <div class="f"><label>top edge Z</label><input type="number" id="cal_tz"></div>
+          <div class="f"><label>bottom edge Z</label><input type="number" id="cal_bz"></div>
+          <label class="hint" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cal_on" style="width:auto"> calibrated</label>
+        </div>
+      </details>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -658,11 +671,12 @@ function mapViewBox(){
 }
 function renderMap(){
   const box=$('mapBox'); if(!box) return;
+  if(!S){ box.innerHTML='<p class="hint" style="margin:auto">Load an export to see the map.</p>'; return; }
   const pts=collectMapPoints();
   const vb=mapViewBox();
   if(!vb){ box.innerHTML='<p class="hint">Place items to see the top-down layout.</p>'; return; }
   const sp=mapSpan(), dotR=Math.max(vb.w,vb.h)/90;
-  let s='<svg id="mapSvg" viewBox="'+vbStr(vb)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto;max-height:460px;background:#0e0f0b;border:1px solid var(--line);border-radius:6px;cursor:move">';
+  let s='<svg id="mapSvg" viewBox="'+vbStr(vb)+'" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;background:#0e0f0b;border:1px solid var(--line);border-radius:6px;cursor:move">';
   if(MAP.calibrated) s+='<image href="'+MAP.image+'" x="0" y="0" width="'+sp.w+'" height="'+sp.h+'" preserveAspectRatio="none"/>';
   pts.forEach(p=>{ if(p.ring){ const s0=wToS(p.x,p.z); s+='<circle cx="'+s0.x.toFixed(1)+'" cy="'+s0.y.toFixed(1)+'" r="'+p.ring+'" fill="none" stroke="'+p.c+'" stroke-width="'+(dotR*0.35).toFixed(2)+'" opacity="0.75"/>'; }});
   pts.forEach(p=>{ const s0=wToS(p.x,p.z); s+='<circle cx="'+s0.x.toFixed(1)+'" cy="'+s0.y.toFixed(1)+'" r="'+dotR.toFixed(1)+'" fill="'+p.c+'" stroke="#0008" stroke-width="'+(dotR*0.15).toFixed(2)+'"><title>'+p.t+'  ('+Math.round(p.x)+', '+Math.round(p.z)+')</title></circle>'; });
@@ -865,6 +879,9 @@ $('addObj').onclick=addObjective;
 $('addRel').onclick=addRelation;
 $('addSup').onclick=addSupport;
 $('addTrig').onclick=addTrigger;
+
+/* initial map-pane state before any load (placeholder + wire the calibration inputs) */
+renderMap(); wireCalib();
 $('copyBtn').onclick=()=>{ navigator.clipboard.writeText($('code').textContent).then(()=>toast('Copied')); };
 $('dlBtn').onclick=()=>{ const blob=new Blob([$('code').textContent],{type:'text/plain'});
   const a=el('a',{href:URL.createObjectURL(blob),download:(S?S.meta.id:'contract')+'.lua'}); document.body.appendChild(a); a.click(); a.remove(); };
