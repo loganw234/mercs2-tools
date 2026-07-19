@@ -1,0 +1,246 @@
+/* home.css -- styles for the mercs2.tools landing page only.
+   Deliberately separate from index.css, which editor.html still depends on. */
+
+:root {
+    --bg:           #0d0f13;
+    --bg-elev:      #14171d;
+    --bg-elev-2:    #191d24;
+    --line:         rgba(255, 255, 255, 0.08);
+    --line-strong:  rgba(255, 255, 255, 0.14);
+
+    --text:         #e9ecf1;
+    --text-muted:   #99a1ae;
+    --text-faint:   #6b7280;
+
+    --accent:       #ff9d2e;
+    --accent-soft:  rgba(255, 157, 46, 0.12);
+    --accent-line:  rgba(255, 157, 46, 0.35);
+
+    --radius:       14px;
+    --radius-sm:    9px;
+    --maxw:         1120px;
+    --ease:         cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+/* one soft wash of colour instead of the old grid + neon blobs */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(60rem 40rem at 12% -10%, rgba(255, 157, 46, 0.07), transparent 60%),
+        radial-gradient(50rem 35rem at 100% 0%, rgba(90, 130, 255, 0.05), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.wrap {
+    position: relative;
+    z-index: 1;
+    max-width: var(--maxw);
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+a { color: inherit; }
+
+/* ---------- hero ---------- */
+.hero { padding: 88px 0 56px; }
+
+.wordmark {
+    margin: 0;
+    font-size: clamp(2.1rem, 5vw, 3.1rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+}
+.wordmark .dot { color: var(--accent); }
+
+.tagline {
+    margin: 18px 0 0;
+    max-width: 62ch;
+    font-size: clamp(1rem, 2vw, 1.15rem);
+    color: var(--text-muted);
+}
+
+.hero-meta {
+    margin-top: 26px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 13px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg-elev);
+    color: var(--text-muted);
+    font-size: 0.83rem;
+    text-decoration: none;
+    transition: border-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+.pill:hover { border-color: var(--accent-line); color: var(--text); }
+.pill .dotmark {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); flex: none;
+}
+
+/* ---------- sections ---------- */
+.section { padding: 40px 0; }
+
+.section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 22px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+}
+.section-head h2 {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 650;
+    letter-spacing: 0.01em;
+}
+.section-head p {
+    margin: 0;
+    color: var(--text-faint);
+    font-size: 0.88rem;
+}
+
+/* ---------- grids ---------- */
+.grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.grid.featured { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+/* ---------- cards ---------- */
+.card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 22px;
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.25s var(--ease), border-color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.card:hover {
+    transform: translateY(-3px);
+    border-color: var(--line-strong);
+    background: var(--bg-elev-2);
+}
+.card:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.card h3 {
+    margin: 0 0 8px;
+    font-size: 1.06rem;
+    font-weight: 640;
+    letter-spacing: -0.01em;
+}
+.card p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+}
+
+.card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.host {
+    font-size: 0.78rem;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-line);
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.src {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+    white-space: nowrap;
+}
+
+/* featured cards read a little louder */
+.card.is-featured { padding: 26px; }
+.card.is-featured h3 { font-size: 1.24rem; }
+.card.is-featured p  { font-size: 0.95rem; }
+.card.is-featured::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 2px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    background: linear-gradient(90deg, var(--accent), transparent 70%);
+    opacity: 0.7;
+}
+
+.card .go {
+    margin-top: 16px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+.card .go span { transition: transform 0.25s var(--ease); display: inline-block; }
+.card:hover .go span { transform: translateX(4px); }
+
+code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.86em;
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 1px 5px;
+    border-radius: 5px;
+}
+
+/* ---------- footer ---------- */
+footer {
+    margin-top: 40px;
+    padding: 32px 0 48px;
+    border-top: 1px solid var(--line);
+    color: var(--text-faint);
+    font-size: 0.85rem;
+}
+footer a { color: var(--text-muted); }
+footer .legal { margin-top: 10px; max-width: 70ch; }
+
+@media (max-width: 560px) {
+    .hero { padding: 60px 0 40px; }
+    .card { padding: 18px; }
+    .card.is-featured { padding: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .card:hover { transform: none; }
+}

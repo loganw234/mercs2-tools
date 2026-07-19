@@ -3,155 +3,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mercenaries 2 Modding Hub</title>
-    <meta name="description" content="A collection of modding tools and resources for Mercenaries 2: World in Flames (2008). Access the PC save game editor, bypass patches, loaders, and research notes.">
-    <link rel="stylesheet" href="index.css">
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    <title>mercs2.tools &mdash; Mercenaries 2 modding</title>
+    <meta name="description" content="Modding tools and documentation for Mercenaries 2: World in Flames — a browser Lua IDE that runs code in your live game, an interactive world map, a custom-UI editor, the Ess Lua framework, and the community wiki.">
+    <link rel="stylesheet" href="home.css">
 </head>
 <body>
-    <div class="cyber-grid"></div>
-    <div class="glow-effect top-left"></div>
-    <div class="glow-effect bottom-right"></div>
+<div class="wrap">
 
-    <div class="container" style="max-width: 1100px;">
-        <!-- Header -->
-        <header style="text-align: center; margin-bottom: 3rem;">
-            <h1 id="app-title" style="font-size: 2.75rem; letter-spacing: 2px; margin: 0;">MERCS2<span class="highlight">.TOOLS</span></h1>
-            <p class="subtitle" style="font-size: 1.1rem; letter-spacing: 1px; margin: 0.5rem 0 0 0;">MERCENARIES 2 MODDING HUB & UTILITIES</p>
-        </header>
+    <header class="hero">
+        <h1 class="wordmark">mercs2<span class="dot">.</span>tools</h1>
+        <p class="tagline">
+            Community modding tools and documentation for <em>Mercenaries 2: World in Flames</em>.
+            Write Lua that runs inside your live game, map the world, build custom in-game UI &mdash;
+            most of it in a browser tab, with nothing to install.
+        </p>
+        <nav class="hero-meta" aria-label="Quick links">
+            <a class="pill" href="https://ide.mercs2.tools/"><span class="dotmark"></span>Lua Web IDE</a>
+            <a class="pill" href="https://map.mercs2.tools/"><span class="dotmark"></span>Live Map</a>
+            <a class="pill" href="https://gfx.mercs2.tools/"><span class="dotmark"></span>GFXForge</a>
+            <a class="pill" href="https://wiki.mercs2.tools/"><span class="dotmark"></span>Wiki</a>
+        </nav>
+    </header>
 
-        <!-- Hub Cards Grid -->
-        <div class="hub-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
-            
-            <!-- Save Editor Card -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: var(--primary); box-shadow: 0 0 20px rgba(255, 162, 0, 0.05); grid-row: span 2;">
-                <div>
-                    <div style="font-size: 2.5rem; margin-bottom: 1rem;">🗃️</div>
-                    <h2 class="section-title" style="color: var(--primary); font-size: 1.4rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">SAVE GAME EDITOR</h2>
-                    <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.45; margin-bottom: 1.5rem;">
-                        Modify PC save game profiles (.profile). Adjust cash, fuel, faction relations, and manage individual stockpiles of all 134 support items. Features a raw database modifier with safety syntax checks. Runs completely client-side in your browser.
-                    </p>
-                </div>
-                <a href="editor.html" class="btn btn-primary" style="text-decoration: none; text-align: center; display: block; padding: 0.75rem; font-weight: 700; letter-spacing: 1px;">LAUNCH SAVE EDITOR</a>
+    <main>
+
+        <!-- ---------------- web apps ---------------- -->
+        <section class="section" aria-labelledby="s-apps">
+            <div class="section-head">
+                <h2 id="s-apps">Web apps</h2>
+                <p>Open in a browser tab. No install, no build step.</p>
             </div>
+            <div class="grid featured">
 
-            <!-- Lua Menu Builder Card -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: var(--primary); box-shadow: 0 0 20px rgba(255, 162, 0, 0.05);">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📜</div>
-                    <h2 class="section-title" style="color: var(--primary); font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">LUA MENU BUILDER</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        A web tool to build structured Lua menu script definitions for the in-game cheat menu system. Design multi-page custom options pipelines with a built-in game screen simulator.
+                <a class="card is-featured" href="https://ide.mercs2.tools/">
+                    <div class="card-top">
+                        <h3>Lua Web IDE</h3>
+                        <span class="host">ide.mercs2.tools</span>
+                    </div>
+                    <p>
+                        Write Lua in the browser and run it <em>inside your running game</em>. Syntax
+                        highlighting, autocomplete for both the <code>Ess</code> framework and the native
+                        engine calls, a lint pass, an examples gallery and a built-in API reference &mdash;
+                        with results and the live game log streaming straight back to the page.
                     </p>
-                </div>
-                <a href="menu_builder.html" class="btn btn-primary" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem; font-weight: 700; letter-spacing: 0.5px;">LAUNCH MENU BUILDER</a>
-            </div>
+                    <div class="go">Open the IDE <span>&rarr;</span></div>
+                </a>
 
-            <!-- MissionForge Card -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: var(--primary); box-shadow: 0 0 20px rgba(255, 162, 0, 0.05);">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎯</div>
-                    <h2 class="section-title" style="color: var(--primary); font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">MISSIONFORGE</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        Web companion to the in-game contract authoring tool. Paste a <code style="font-family: monospace; color: var(--primary);">MISSIONFORGE_EXPORT</code> dump, refine objectives and mission details, then copy out a ready <code style="font-family: monospace; color: var(--primary);">Contract.Register{}</code> definition for the custom contract framework.
+                <a class="card is-featured" href="https://map.mercs2.tools/">
+                    <div class="card-top">
+                        <h3>Live Map</h3>
+                        <span class="host">map.mercs2.tools</span>
+                    </div>
+                    <p>
+                        An interactive map of the whole game world. Collectible and teleport layers ship
+                        built in, and you can drag in any JSON file of world-space points to get a new
+                        toggleable layer. Connect to a running game to watch your position live and
+                        teleport straight from the map.
                     </p>
-                </div>
-                <a href="missionforge.html" class="btn btn-primary" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem; font-weight: 700; letter-spacing: 0.5px;">LAUNCH MISSIONFORGE</a>
-            </div>
+                    <div class="go">Open the map <span>&rarr;</span></div>
+                </a>
 
-            <!-- Model Rig Browser Card -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: var(--primary); box-shadow: 0 0 20px rgba(255, 162, 0, 0.05);">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🦴</div>
-                    <h2 class="section-title" style="color: var(--primary); font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">MODEL RIG BROWSER</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        Every bone and hardpoint on all 329 models in the game (characters, vehicles, weapons), searchable and viewable as a live 2D skeleton. Recovered via hash-cracking the same string table behind the save editor's item names &mdash; 64% of all 16,690 bone slots have a confirmed real name so far, the rest reachable through a synthetic handle.
+                <a class="card is-featured" href="https://gfx.mercs2.tools/">
+                    <div class="card-top">
+                        <h3>GFXForge</h3>
+                        <span class="host">gfx.mercs2.tools</span>
+                    </div>
+                    <p>
+                        A visual editor for custom in-game UI. Lay out panels, text, buttons and menus,
+                        script them, preview the result in the browser, then export a <code>.gfx</code>
+                        movie together with the Lua host script needed to drive it in game.
                     </p>
-                </div>
-                <a href="model_rig_browser.html" class="btn btn-primary" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem; font-weight: 700; letter-spacing: 0.5px;">LAUNCH RIG BROWSER</a>
-            </div>
+                    <div class="go">Open GFXForge <span>&rarr;</span></div>
+                </a>
 
-            <!-- Collision Minter Card -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-color: var(--primary); box-shadow: 0 0 20px rgba(255, 162, 0, 0.05);">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🪙</div>
-                    <h2 class="section-title" style="color: var(--primary); font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">COLLISION MINTER</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        Give it a target <code style="font-family: monospace; color: var(--primary);">pandemic_hash_m2</code> hash, get back a short string that hashes to it &mdash; not the real name, just a working stand-in for anything (like an unnamed bone) only reachable by its hash. Pure JS, runs entirely client-side; the same algebraic shortcut behind the Model Rig Browser's synthetic handles.
+            </div>
+        </section>
+
+        <!-- ---------------- learn ---------------- -->
+        <section class="section" aria-labelledby="s-docs">
+            <div class="section-head">
+                <h2 id="s-docs">Learn</h2>
+                <p>Where to find out how any of this actually works.</p>
+            </div>
+            <div class="grid">
+
+                <a class="card" href="https://wiki.mercs2.tools/">
+                    <div class="card-top">
+                        <h3>Modding Wiki</h3>
+                        <span class="host">wiki.mercs2.tools</span>
+                    </div>
+                    <p>
+                        The reference: engine namespaces, deep dives on individual systems, and page-by-page
+                        documentation drawn from the game's own decompiled scripts. The best starting point
+                        if you're new to modding this game.
                     </p>
-                </div>
-                <a href="minter.html" class="btn btn-primary" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem; font-weight: 700; letter-spacing: 0.5px;">LAUNCH MINTER</a>
-            </div>
+                    <div class="go">Read the wiki <span>&rarr;</span></div>
+                </a>
 
-            <!-- Modkit Card -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🛠️</div>
-                    <h2 class="section-title" style="font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">MERCENARIES 2 MODKIT</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        A desktop mod manager for Mercenaries 2. Load mods, detect conflicts, resolve asset collisions, and package validated WAD archives (<code style="font-family: monospace; color: var(--primary);">vz-patch.wad</code>) without using the command line.
+                <a class="card" href="https://github.com/Mercenaries-Fan-Build/notes-on-the-released-game">
+                    <div class="card-top">
+                        <h3>Community Research</h3>
+                        <span class="src">GitHub</span>
+                    </div>
+                    <p>
+                        A large collection of notes, scripts, reverse-engineering files, asset formats and
+                        file analyses gathered around the released game.
                     </p>
-                </div>
-                <a href="https://github.com/Mercenaries-Fan-Build/mercs2-modkit" target="_blank" class="btn" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem;">VIEW ON GITHUB</a>
-            </div>
+                    <div class="go">View on GitHub <span>&rarr;</span></div>
+                </a>
 
-            <!-- Ferdilanz Cheat Menu Guide -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📖</div>
-                    <h2 class="section-title" style="color: var(--accent); font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">CHEAT MENU & MOD GUIDE</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        A very well-made and thorough guide detailing the setup process for manual cheat menus, developer scripts, and config modding.
+            </div>
+        </section>
+
+        <!-- ---------------- lua stack ---------------- -->
+        <section class="section" aria-labelledby="s-lua">
+            <div class="section-head">
+                <h2 id="s-lua">Build with Lua</h2>
+                <p>The pieces the tools above are built on.</p>
+            </div>
+            <div class="grid">
+
+                <a class="card" href="https://github.com/loganw234/mercs2-lua-essentials">
+                    <div class="card-top">
+                        <h3>Ess &mdash; Essentials framework</h3>
+                        <span class="src">GitHub</span>
+                    </div>
+                    <p>
+                        The Lua framework most of this ecosystem targets. One <code>Ess</code> global covering
+                        spawning, missions and objectives, UI widgets, AI orders, markers, camera work and
+                        cutscenes &mdash; layered so beginners get one-line helpers and advanced users still
+                        reach the raw primitives. Drop one file in and start scripting.
                     </p>
-                </div>
-                <a href="https://github.com/Ferdilanz/Mercenaries2_NextGen-Manual-Cheat-Menu-Guide" target="_blank" class="btn" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem;">VIEW ON GITHUB</a>
-            </div>
+                    <div class="go">View on GitHub <span>&rarr;</span></div>
+                </a>
 
-            <!-- SecuROM Bypass -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔓</div>
-                    <h2 class="section-title" style="font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">SECUROM BYPASS</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        Removes the legacy SecuROM DRM protection from the game executable and alters it to load the community's mod loader library.
+                <a class="card" href="https://github.com/loganw234/Merc2-Mods-Exp">
+                    <div class="card-top">
+                        <h3>lua-bridge</h3>
+                        <span class="src">GitHub</span>
+                    </div>
+                    <p>
+                        The mod that opens a socket into the running game, serving both a raw TCP REPL and a
+                        WebSocket server locally. It's what lets the Web IDE and Live Map execute Lua and read
+                        live state from a browser with no relay in between.
                     </p>
-                </div>
-                <a href="https://github.com/Mercenaries-Fan-Build/mercs2-securom-bypass" target="_blank" class="btn" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem;">VIEW ON GITHUB</a>
-            </div>
+                    <div class="go">View on GitHub <span>&rarr;</span></div>
+                </a>
 
-            <!-- PMC Blackbox -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚙️</div>
-                    <h2 class="section-title" style="font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">PMC BLACKBOX</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        An ASI loader and plugin framework the community is using to develop custom scripts and structural mods for the game engine.
+                <a class="card" href="https://github.com/loganw234/mercs2-lua-mods">
+                    <div class="card-top">
+                        <h3>Lua mods</h3>
+                        <span class="src">GitHub</span>
+                    </div>
+                    <p>
+                        Finished, playable Lua mods for the game &mdash; including a co-op wave-defense mode
+                        &mdash; useful both to play and to read as worked examples.
                     </p>
-                </div>
-                <a href="https://github.com/Mercenaries-Fan-Build/pmc-blackbox" target="_blank" class="btn" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem;">VIEW ON GITHUB</a>
-            </div>
+                    <div class="go">View on GitHub <span>&rarr;</span></div>
+                </a>
 
-            <!-- Notes on Released Game -->
-            <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📁</div>
-                    <h2 class="section-title" style="font-size: 1.2rem; border: none; padding: 0; margin-bottom: 0.75rem; font-family: 'Orbitron', sans-serif;">COMMUNITY RESEARCH</h2>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 1.25rem;">
-                        A massive collection of notes, scripts, reverse engineering files, asset formats, and file analyses for the released game database.
+            </div>
+        </section>
+
+        <!-- ---------------- utilities ---------------- -->
+        <section class="section" aria-labelledby="s-util">
+            <div class="section-head">
+                <h2 id="s-util">Utilities</h2>
+                <p>Smaller single-purpose tools, all client-side.</p>
+            </div>
+            <div class="grid">
+
+                <a class="card" href="missionforge.html">
+                    <div class="card-top">
+                        <h3>MissionForge</h3>
+                        <span class="src">on this site</span>
+                    </div>
+                    <p>
+                        Web companion to the in-game contract authoring tool. Paste a
+                        <code>MISSIONFORGE_EXPORT</code> dump, refine the objectives and mission details, then
+                        copy out a ready contract definition.
                     </p>
-                </div>
-                <a href="https://github.com/Mercenaries-Fan-Build/notes-on-the-released-game" target="_blank" class="btn" style="text-decoration: none; text-align: center; display: block; padding: 0.5rem;">VIEW ON GITHUB</a>
-            </div>
+                    <div class="go">Open MissionForge <span>&rarr;</span></div>
+                </a>
 
+                <a class="card" href="model_rig_browser.html">
+                    <div class="card-top">
+                        <h3>Model Rig Browser</h3>
+                        <span class="src">on this site</span>
+                    </div>
+                    <p>
+                        Every bone and hardpoint across all 329 models in the game &mdash; characters, vehicles
+                        and weapons &mdash; searchable and viewable as a live 2D skeleton.
+                    </p>
+                    <div class="go">Open the browser <span>&rarr;</span></div>
+                </a>
+
+                <a class="card" href="minter.html">
+                    <div class="card-top">
+                        <h3>Collision Minter</h3>
+                        <span class="src">on this site</span>
+                    </div>
+                    <p>
+                        Give it a target <code>pandemic_hash_m2</code> hash and get back a short string that
+                        hashes to it &mdash; not the real name, but a working stand-in for anything reachable
+                        only by its hash, like an unnamed bone.
+                    </p>
+                    <div class="go">Open the minter <span>&rarr;</span></div>
+                </a>
+
+            </div>
+        </section>
+
+        <!-- ---------------- setup ---------------- -->
+        <section class="section" aria-labelledby="s-setup">
+            <div class="section-head">
+                <h2 id="s-setup">Game setup</h2>
+                <p>Getting a moddable copy of the game running in the first place.</p>
+            </div>
+            <div class="grid">
+
+                <a class="card" href="https://github.com/Mercenaries-Fan-Build/mercs2-modkit">
+                    <div class="card-top">
+                        <h3>Modkit</h3>
+                        <span class="src">GitHub</span>
+                    </div>
+                    <p>
+                        A desktop mod manager. Load mods, detect conflicts, resolve asset collisions and
+                        package a validated <code>vz-patch.wad</code> without touching a command line.
+                    </p>
+                    <div class="go">View on GitHub <span>&rarr;</span></div>
+                </a>
+
+                <a class="card" href="https://github.com/Mercenaries-Fan-Build/pmc-blackbox">
+                    <div class="card-top">
+                        <h3>PMC Blackbox</h3>
+                        <span class="src">GitHub</span>
+                    </div>
+                    <p>
+                        The ASI loader and plugin framework the community builds custom scripts and structural
+                        engine mods on top of.
+                    </p>
+                    <div class="go">View on GitHub <span>&rarr;</span></div>
+                </a>
+
+                <a class="card" href="https://github.com/Mercenaries-Fan-Build/mercs2-securom-bypass">
+                    <div class="card-top">
+                        <h3>SecuROM Bypass</h3>
+                        <span class="src">GitHub</span>
+                    </div>
+                    <p>
+                        Removes the legacy SecuROM DRM from the game executable and patches it to load the
+                        community mod loader.
+                    </p>
+                    <div class="go">View on GitHub <span>&rarr;</span></div>
+                </a>
+
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        <div>
+            mercs2.tools &mdash; an open-source community fan project.
         </div>
+        <div class="legal">
+            Not affiliated, associated, authorized, endorsed by, or in any way officially connected with
+            Electronic Arts or Pandemic Studios. <em>Mercenaries 2: World in Flames</em> and all related
+            marks are the property of their respective owners.
+        </div>
+    </footer>
 
-        <footer style="text-align: center; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top: 2rem; margin-bottom: 2rem; line-height: 1.5;">
-            mercs2.tools is an open-source community fan project.<br>
-            Not affiliated, associated, authorized, endorsed by, or in any way officially connected with Electronic Arts or Pandemic Studios.
-        </footer>
-    </div>
+</div>
 </body>
 </html>
