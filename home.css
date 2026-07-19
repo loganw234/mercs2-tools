@@ -223,6 +223,31 @@ code {
     border-radius: 5px;
 }
 
+/* ---------- notice callout ---------- */
+.notice {
+    margin-bottom: 20px;
+    padding: 20px 22px;
+    border: 1px solid var(--accent-line);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    background: var(--accent-soft);
+}
+.notice h3 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+    font-weight: 650;
+    color: var(--accent);
+    letter-spacing: 0.01em;
+}
+.notice p {
+    margin: 0;
+    color: var(--text);
+    font-size: 0.94rem;
+    max-width: 82ch;
+}
+.notice p + p { margin-top: 10px; }
+.notice strong { color: #fff; }
+
 /* ---------- footer ---------- */
 footer {
     margin-top: 40px;
